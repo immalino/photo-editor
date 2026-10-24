@@ -1,7 +1,10 @@
-import { useState, useRef, useCallback, type DragEvent } from 'react'
+import { useState, useRef, useCallback, useEffect, type DragEvent } from 'react'
 import { HeaderToolbar } from './components/layout/HeaderToolbar'
 import { CanvasViewport } from './components/canvas/CanvasViewport'
+import { CanvasTextLayer } from './components/canvas/CanvasTextLayer'
+import { CanvasTransformer } from './components/canvas/CanvasTransformer'
 import { usePhotoStore } from './stores/usePhotoStore'
+import { useLayerStore } from './stores/useLayerStore'
 import { openFileDialog } from './services/platformAdapter'
 import { createPhotoItemFromFile, isSupportedImageFile } from './services/fileReader'
 
@@ -9,9 +12,36 @@ export function App() {
   const { photos, activePhotoId, addPhoto, clearPhotos } = usePhotoStore()
   const activePhoto = photos.find((p) => p.id === activePhotoId)
 
+  const {
+    layers,
+    selectedLayerId,
+    addTextLayer,
+    updateLayer,
+    deleteLayer,
+    selectLayer,
+  } = useLayerStore()
+
   const [isDragging, setIsDragging] = useState(false)
   const dragCounterRef = useRef(0)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+
+  // Keyboard shortcut to delete selected layer (Del or Backspace)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const activeTag = document.activeElement?.tagName
+      if (activeTag === 'INPUT' || activeTag === 'TEXTAREA') {
+        return
+      }
+
+      if ((e.key === 'Delete' || e.key === 'Backspace') && activePhotoId && selectedLayerId) {
+        e.preventDefault()
+        deleteLayer(activePhotoId, selectedLayerId)
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [activePhotoId, selectedLayerId, deleteLayer])
 
   const handleProcessFiles = useCallback(
     async (files: File[]) => {
@@ -52,6 +82,11 @@ export function App() {
     }
   }, [handleProcessFiles])
 
+  const handleAddText = useCallback(() => {
+    if (!activePhotoId) return
+    addTextLayer(activePhotoId)
+  }, [activePhotoId, addTextLayer])
+
   const handleDragEnter = (e: DragEvent<HTMLDivElement>) => {
     e.preventDefault()
     e.stopPropagation()
@@ -89,6 +124,9 @@ export function App() {
     }
   }
 
+  const activeLayers = activePhotoId ? (layers[activePhotoId] ?? []) : []
+  const selectedLayer = activeLayers.find((l) => l.id === selectedLayerId)
+
   return (
     <div
       className="flex h-screen w-screen flex-col overflow-hidden bg-slate-900 text-slate-100"
@@ -101,6 +139,7 @@ export function App() {
         activePhoto={activePhoto}
         onOpenPhoto={handleOpenPhoto}
         onReset={clearPhotos}
+        onAddText={handleAddText}
       />
 
       {errorMessage && (
@@ -114,7 +153,29 @@ export function App() {
           photo={activePhoto}
           onOpenFile={handleOpenPhoto}
           isDragging={isDragging}
-        />
+          onDeselect={() => selectLayer(null)}
+        >
+          {(fit) => (
+            <>
+              {activeLayers.map((layer) => (
+                <CanvasTextLayer
+                  key={layer.id}
+                  layer={layer}
+                  fit={fit}
+                  isSelected={layer.id === selectedLayerId}
+                  onSelect={selectLayer}
+                  onChange={(updates) =>
+                    activePhotoId && updateLayer(activePhotoId, layer.id, updates)
+                  }
+                />
+              ))}
+              <CanvasTransformer
+                selectedLayerId={selectedLayerId}
+                updateKey={selectedLayer}
+              />
+            </>
+          )}
+        </CanvasViewport>
       </main>
     </div>
   )

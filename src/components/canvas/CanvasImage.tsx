@@ -53,3 +53,4 @@ export function CanvasImage({ url, fit }: CanvasImageProps) {
     />
   )
 }
+

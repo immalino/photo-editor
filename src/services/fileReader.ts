@@ -64,3 +64,4 @@ export async function createPhotoItemFromFile(file: File): Promise<PhotoItem> {
     throw error
   }
 }
+

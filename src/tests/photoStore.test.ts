@@ -87,3 +87,4 @@ describe('usePhotoStore', () => {
     expect(state.activePhotoId).toBeNull()
   })
 })
+

@@ -87,3 +87,4 @@ export function canvasToRelative(
     relY: (canvasY - fit.y) / fit.renderedHeight,
   }
 }
+

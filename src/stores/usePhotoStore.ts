@@ -77,3 +77,4 @@ export const usePhotoStore = create<PhotoStoreState>((set, get) => ({
     return photos.find((p) => p.id === activePhotoId)
   },
 }))
+

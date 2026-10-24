@@ -10,6 +10,7 @@ export interface CanvasViewportProps {
   onOpenFile?: () => void
   isDragging?: boolean
   children?: (fit: CanvasFitResult) => ReactNode
+  onDeselect?: () => void
 }
 
 export function CanvasViewport({
@@ -17,6 +18,7 @@ export function CanvasViewport({
   onOpenFile,
   isDragging = false,
   children,
+  onDeselect,
 }: CanvasViewportProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 })
@@ -64,6 +66,16 @@ export function CanvasViewport({
             width={dimensions.width}
             height={dimensions.height}
             className="absolute inset-0"
+            onMouseDown={(e) => {
+              if (e.target === e.target.getStage()) {
+                onDeselect?.()
+              }
+            }}
+            onTouchStart={(e) => {
+              if (e.target === e.target.getStage()) {
+                onDeselect?.()
+              }
+            }}
           >
             <Layer>
               <CanvasImage url={photo.url} fit={fit} />
@@ -107,3 +119,4 @@ export function CanvasViewport({
     </div>
   )
 }
+
