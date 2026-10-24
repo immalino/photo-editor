@@ -18,6 +18,7 @@ export interface LayerStoreState {
   moveLayerUp: (photoId: string, layerId: string) => void
   moveLayerDown: (photoId: string, layerId: string) => void
   toggleVisibility: (photoId: string, layerId: string) => void
+  applyLayersToAllPhotos: (sourcePhotoId: string, allPhotoIds: string[]) => void
   clearLayers: (photoId?: string) => void
 }
 
@@ -190,6 +191,25 @@ export const useLayerStore = create<LayerStoreState>((set, get) => ({
           [photoId]: updated,
         },
       }
+    })
+  },
+
+  applyLayersToAllPhotos: (sourcePhotoId: string, allPhotoIds: string[]) => {
+    const sourceLayers = get().layers[sourcePhotoId] ?? []
+    set((state) => {
+      const nextLayers = { ...state.layers }
+      for (const targetId of allPhotoIds) {
+        if (targetId === sourcePhotoId) continue
+        nextLayers[targetId] = sourceLayers.map((layer, index) => ({
+          ...layer,
+          id:
+            typeof crypto !== 'undefined' && crypto.randomUUID
+              ? crypto.randomUUID()
+              : `layer-${Date.now()}-${Math.random()}-${index}`,
+          style: { ...layer.style },
+        }))
+      }
+      return { layers: nextLayers }
     })
   },
 

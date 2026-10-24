@@ -1,20 +1,24 @@
-import { Image as ImageIcon, FolderOpen, RotateCcw, Type, Download } from 'lucide-react'
+import { Image as ImageIcon, FolderOpen, RotateCcw, Type, Download, Layers } from 'lucide-react'
 import type { PhotoItem } from '../../types/photo'
 
 export interface HeaderToolbarProps {
   activePhoto?: PhotoItem
+  photosCount?: number
   onOpenPhoto: () => void
   onReset?: () => void
   onAddText?: () => void
   onExport?: () => void
+  onExportBatch?: () => void
 }
 
 export function HeaderToolbar({
   activePhoto,
+  photosCount = 0,
   onOpenPhoto,
   onReset,
   onAddText,
   onExport,
+  onExportBatch,
 }: HeaderToolbarProps) {
   return (
     <header className="flex h-14 shrink-0 items-center justify-between border-b border-slate-800 bg-slate-900/90 px-4 backdrop-blur-sm">
@@ -62,6 +66,18 @@ export function HeaderToolbar({
           >
             <Download className="h-4 w-4" />
             <span>Ekspor</span>
+          </button>
+        )}
+
+        {photosCount > 1 && onExportBatch && (
+          <button
+            type="button"
+            onClick={onExportBatch}
+            className="inline-flex items-center gap-1.5 rounded-lg bg-teal-600 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-teal-500 active:scale-95 shadow-sm"
+            title="Ekspor Semua Foto (Batch Queue)"
+          >
+            <Layers className="h-4 w-4" />
+            <span>Ekspor Batch ({photosCount})</span>
           </button>
         )}
 

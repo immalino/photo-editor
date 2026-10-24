@@ -4,14 +4,17 @@ import { CanvasViewport } from './components/canvas/CanvasViewport'
 import { CanvasTextLayer } from './components/canvas/CanvasTextLayer'
 import { CanvasTransformer } from './components/canvas/CanvasTransformer'
 import { PropertiesPanel } from './components/properties/PropertiesPanel'
+import { BottomThumbnails } from './components/layout/BottomThumbnails'
 import { ExportSingleModal } from './components/dialogs/ExportSingleModal'
+import { ExportBatchModal } from './components/dialogs/ExportBatchModal'
 import { usePhotoStore } from './stores/usePhotoStore'
 import { useLayerStore } from './stores/useLayerStore'
 import { openFileDialog } from './services/platformAdapter'
 import { createPhotoItemFromFile, isSupportedImageFile } from './services/fileReader'
 
 export function App() {
-  const { photos, activePhotoId, addPhoto, clearPhotos } = usePhotoStore()
+  const { photos, activePhotoId, addPhoto, setActivePhoto, removePhoto, clearPhotos } =
+    usePhotoStore()
   const activePhoto = photos.find((p) => p.id === activePhotoId)
 
   const {
@@ -24,12 +27,16 @@ export function App() {
     moveLayerUp,
     moveLayerDown,
     toggleVisibility,
+    applyLayersToAllPhotos,
+    clearLayers,
   } = useLayerStore()
 
   const [isDragging, setIsDragging] = useState(false)
   const dragCounterRef = useRef(0)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [infoMessage, setInfoMessage] = useState<string | null>(null)
   const [isExportModalOpen, setIsExportModalOpen] = useState(false)
+  const [isBatchExportModalOpen, setIsBatchExportModalOpen] = useState(false)
 
   // Keyboard shortcut to delete selected layer (Del or Backspace)
   useEffect(() => {
@@ -77,7 +84,7 @@ export function App() {
   const handleOpenPhoto = useCallback(async () => {
     try {
       const files = await openFileDialog({
-        multiple: false,
+        multiple: true,
         accept: 'image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp',
       })
       if (files.length > 0) {
@@ -87,6 +94,22 @@ export function App() {
       console.error('Failed to open file dialog:', err)
     }
   }, [handleProcessFiles])
+
+  const handleApplyToAll = useCallback(() => {
+    if (!activePhotoId || photos.length <= 1) return
+    const allIds = photos.map((p) => p.id)
+    applyLayersToAllPhotos(activePhotoId, allIds)
+    setInfoMessage(`Teks berhasil disalin ke seluruh ${photos.length} foto!`)
+    setTimeout(() => setInfoMessage(null), 3500)
+  }, [activePhotoId, photos, applyLayersToAllPhotos])
+
+  const handleRemovePhoto = useCallback(
+    (id: string) => {
+      removePhoto(id)
+      clearLayers(id)
+    },
+    [removePhoto, clearLayers]
+  )
 
   const handleAddText = useCallback(() => {
     if (!activePhotoId) return
@@ -143,11 +166,19 @@ export function App() {
     >
       <HeaderToolbar
         activePhoto={activePhoto}
+        photosCount={photos.length}
         onOpenPhoto={handleOpenPhoto}
         onReset={clearPhotos}
         onAddText={handleAddText}
         onExport={() => setIsExportModalOpen(true)}
+        onExportBatch={() => setIsBatchExportModalOpen(true)}
       />
+
+      {infoMessage && (
+        <div className="absolute top-16 left-1/2 -translate-x-1/2 z-50 rounded-lg border border-indigo-500/40 bg-indigo-950/90 px-4 py-2 text-xs text-indigo-200 shadow-xl backdrop-blur-sm animate-fade-in">
+          {infoMessage}
+        </div>
+      )}
 
       {errorMessage && (
         <div className="absolute top-16 right-4 z-50 rounded-lg border border-red-500/30 bg-red-950/80 px-4 py-2 text-xs text-red-200 shadow-lg backdrop-blur-sm animate-fade-in">
@@ -156,34 +187,47 @@ export function App() {
       )}
 
       <main className="flex flex-1 overflow-hidden">
-        <div className="relative flex flex-1 overflow-hidden">
-          <CanvasViewport
-            photo={activePhoto}
-            onOpenFile={handleOpenPhoto}
-            isDragging={isDragging}
-            onDeselect={() => selectLayer(null)}
-          >
-            {(fit) => (
-              <>
-                {activeLayers.map((layer) => (
-                  <CanvasTextLayer
-                    key={layer.id}
-                    layer={layer}
-                    fit={fit}
-                    isSelected={layer.id === selectedLayerId}
-                    onSelect={selectLayer}
-                    onChange={(updates) =>
-                      activePhotoId && updateLayer(activePhotoId, layer.id, updates)
-                    }
+        <div className="flex flex-1 flex-col overflow-hidden">
+          <div className="relative flex flex-1 overflow-hidden">
+            <CanvasViewport
+              photo={activePhoto}
+              onOpenFile={handleOpenPhoto}
+              isDragging={isDragging}
+              onDeselect={() => selectLayer(null)}
+            >
+              {(fit) => (
+                <>
+                  {activeLayers.map((layer) => (
+                    <CanvasTextLayer
+                      key={layer.id}
+                      layer={layer}
+                      fit={fit}
+                      isSelected={layer.id === selectedLayerId}
+                      onSelect={selectLayer}
+                      onChange={(updates) =>
+                        activePhotoId && updateLayer(activePhotoId, layer.id, updates)
+                      }
+                    />
+                  ))}
+                  <CanvasTransformer
+                    selectedLayerId={selectedLayerId}
+                    updateKey={selectedLayer}
                   />
-                ))}
-                <CanvasTransformer
-                  selectedLayerId={selectedLayerId}
-                  updateKey={selectedLayer}
-                />
-              </>
-            )}
-          </CanvasViewport>
+                </>
+              )}
+            </CanvasViewport>
+          </div>
+
+          <BottomThumbnails
+            photos={photos}
+            activePhotoId={activePhotoId}
+            layersMap={layers}
+            onSelectPhoto={setActivePhoto}
+            onRemovePhoto={handleRemovePhoto}
+            onAddMorePhotos={handleOpenPhoto}
+            onApplyLayersToAll={handleApplyToAll}
+            onOpenBatchExport={() => setIsBatchExportModalOpen(true)}
+          />
         </div>
 
         <PropertiesPanel
@@ -215,6 +259,15 @@ export function App() {
           onClose={() => setIsExportModalOpen(false)}
           photo={activePhoto}
           layers={activeLayers}
+        />
+      )}
+
+      {photos.length > 0 && (
+        <ExportBatchModal
+          isOpen={isBatchExportModalOpen}
+          onClose={() => setIsBatchExportModalOpen(false)}
+          photos={photos}
+          layersMap={layers}
         />
       )}
     </div>
