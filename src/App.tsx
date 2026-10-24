@@ -4,6 +4,7 @@ import { CanvasViewport } from './components/canvas/CanvasViewport'
 import { CanvasTextLayer } from './components/canvas/CanvasTextLayer'
 import { CanvasTransformer } from './components/canvas/CanvasTransformer'
 import { PropertiesPanel } from './components/properties/PropertiesPanel'
+import { ExportSingleModal } from './components/dialogs/ExportSingleModal'
 import { usePhotoStore } from './stores/usePhotoStore'
 import { useLayerStore } from './stores/useLayerStore'
 import { openFileDialog } from './services/platformAdapter'
@@ -28,6 +29,7 @@ export function App() {
   const [isDragging, setIsDragging] = useState(false)
   const dragCounterRef = useRef(0)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false)
 
   // Keyboard shortcut to delete selected layer (Del or Backspace)
   useEffect(() => {
@@ -144,6 +146,7 @@ export function App() {
         onOpenPhoto={handleOpenPhoto}
         onReset={clearPhotos}
         onAddText={handleAddText}
+        onExport={() => setIsExportModalOpen(true)}
       />
 
       {errorMessage && (
@@ -205,6 +208,15 @@ export function App() {
           }
         />
       </main>
+
+      {activePhoto && (
+        <ExportSingleModal
+          isOpen={isExportModalOpen}
+          onClose={() => setIsExportModalOpen(false)}
+          photo={activePhoto}
+          layers={activeLayers}
+        />
+      )}
     </div>
   )
 }

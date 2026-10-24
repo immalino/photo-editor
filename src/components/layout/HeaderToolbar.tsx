@@ -1,4 +1,4 @@
-import { Image as ImageIcon, FolderOpen, RotateCcw, Type } from 'lucide-react'
+import { Image as ImageIcon, FolderOpen, RotateCcw, Type, Download } from 'lucide-react'
 import type { PhotoItem } from '../../types/photo'
 
 export interface HeaderToolbarProps {
@@ -6,6 +6,7 @@ export interface HeaderToolbarProps {
   onOpenPhoto: () => void
   onReset?: () => void
   onAddText?: () => void
+  onExport?: () => void
 }
 
 export function HeaderToolbar({
@@ -13,6 +14,7 @@ export function HeaderToolbar({
   onOpenPhoto,
   onReset,
   onAddText,
+  onExport,
 }: HeaderToolbarProps) {
   return (
     <header className="flex h-14 shrink-0 items-center justify-between border-b border-slate-800 bg-slate-900/90 px-4 backdrop-blur-sm">
@@ -51,6 +53,18 @@ export function HeaderToolbar({
           </button>
         )}
 
+        {activePhoto && onExport && (
+          <button
+            type="button"
+            onClick={onExport}
+            className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-emerald-500 active:scale-95 shadow-sm"
+            title="Ekspor Foto Resolusi Penuh"
+          >
+            <Download className="h-4 w-4" />
+            <span>Ekspor</span>
+          </button>
+        )}
+
         <button
           type="button"
           onClick={onOpenPhoto}
@@ -75,4 +89,3 @@ export function HeaderToolbar({
     </header>
   )
 }
-
