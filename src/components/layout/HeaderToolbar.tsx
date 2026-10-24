@@ -1,9 +1,24 @@
-import { Image as ImageIcon, FolderOpen, RotateCcw, Type, Download, Layers } from 'lucide-react'
+import {
+  Image as ImageIcon,
+  FolderOpen,
+  RotateCcw,
+  Type,
+  Download,
+  Layers,
+  Undo2,
+  Redo2,
+  FileCode,
+} from 'lucide-react'
 import type { PhotoItem } from '../../types/photo'
 
 export interface HeaderToolbarProps {
   activePhoto?: PhotoItem
   photosCount?: number
+  canUndo?: boolean
+  canRedo?: boolean
+  onUndo?: () => void
+  onRedo?: () => void
+  onOpenTemplate?: () => void
   onOpenPhoto: () => void
   onReset?: () => void
   onAddText?: () => void
@@ -14,6 +29,11 @@ export interface HeaderToolbarProps {
 export function HeaderToolbar({
   activePhoto,
   photosCount = 0,
+  canUndo = false,
+  canRedo = false,
+  onUndo,
+  onRedo,
+  onOpenTemplate,
   onOpenPhoto,
   onReset,
   onAddText,
@@ -45,6 +65,45 @@ export function HeaderToolbar({
       </div>
 
       <div className="flex items-center gap-2">
+        {/* Undo & Redo buttons */}
+        {activePhoto && (
+          <div className="flex items-center rounded-lg border border-slate-700/80 bg-slate-800/60 p-0.5 mr-1">
+            <button
+              type="button"
+              onClick={onUndo}
+              disabled={!canUndo}
+              className="rounded p-1.5 text-slate-300 transition hover:bg-slate-700 hover:text-white disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-slate-400"
+              title="Undo (Ctrl + Z)"
+              aria-label="Undo"
+            >
+              <Undo2 className="h-3.5 w-3.5" />
+            </button>
+            <button
+              type="button"
+              onClick={onRedo}
+              disabled={!canRedo}
+              className="rounded p-1.5 text-slate-300 transition hover:bg-slate-700 hover:text-white disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-slate-400"
+              title="Redo (Ctrl + Y)"
+              aria-label="Redo"
+            >
+              <Redo2 className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        )}
+
+        {/* Template Button */}
+        {activePhoto && onOpenTemplate && (
+          <button
+            type="button"
+            onClick={onOpenTemplate}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-800/80 px-2.5 py-1.5 text-xs text-slate-200 transition hover:bg-slate-700 active:scale-95 shadow-sm"
+            title="Kelola Template Layer Teks (.json)"
+          >
+            <FileCode className="h-3.5 w-3.5 text-amber-400" />
+            <span className="hidden sm:inline">Template</span>
+          </button>
+        )}
+
         {activePhoto && onAddText && (
           <button
             type="button"

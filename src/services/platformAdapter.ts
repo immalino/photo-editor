@@ -74,6 +74,52 @@ export async function openFileDialog(
     accept = 'image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp',
   } = options
 
+  // Tauri Native Dialog Integration
+  if (isTauri()) {
+    try {
+      const dialog = await import('@tauri-apps/plugin-dialog')
+      const fs = await import('@tauri-apps/plugin-fs')
+
+      const selected = await dialog.open({
+        multiple,
+        filters: [
+          {
+            name: 'Images',
+            extensions: ['jpg', 'jpeg', 'png', 'webp'],
+          },
+        ],
+      })
+
+      if (!selected) return []
+
+      const paths = Array.isArray(selected) ? selected : [selected]
+      const files: File[] = []
+
+      for (const filePath of paths) {
+        try {
+          const contents = await fs.readFile(filePath)
+          const { baseName, extension } = parseFileName(filePath)
+          const mimeType =
+            extension === 'png'
+              ? 'image/png'
+              : extension === 'webp'
+              ? 'image/webp'
+              : 'image/jpeg'
+          const file = new File([contents], `${baseName}.${extension}`, {
+            type: mimeType,
+          })
+          files.push(file)
+        } catch (e) {
+          console.error('Failed to read file from Tauri fs:', e)
+        }
+      }
+
+      return files
+    } catch (err) {
+      console.warn('Tauri dialog failed, falling back to browser dialog:', err)
+    }
+  }
+
   if (typeof document === 'undefined') {
     return []
   }
@@ -120,12 +166,43 @@ export async function openFileDialog(
 
 /**
  * Triggers saving a Blob to the user's computer.
- * Uses browser download link mechanism with automatic cleanup.
+ * Supports Tauri native file save dialog and browser fallback download link.
  */
 export async function saveFileBlob(
   blob: Blob,
   defaultFileName: string
 ): Promise<boolean> {
+  // Tauri Native Save Integration
+  if (isTauri()) {
+    try {
+      const dialog = await import('@tauri-apps/plugin-dialog')
+      const fs = await import('@tauri-apps/plugin-fs')
+      const { extension } = parseFileName(defaultFileName)
+
+      const filePath = await dialog.save({
+        defaultPath: defaultFileName,
+        filters: extension
+          ? [
+              {
+                name: extension.toUpperCase(),
+                extensions: [extension],
+              },
+            ]
+          : undefined,
+      })
+
+      if (!filePath) {
+        return false // user cancelled
+      }
+
+      const buffer = await blob.arrayBuffer()
+      await fs.writeFile(filePath, new Uint8Array(buffer))
+      return true
+    } catch (err) {
+      console.warn('Tauri save failed, falling back to browser download:', err)
+    }
+  }
+
   if (typeof document === 'undefined' || typeof URL === 'undefined') {
     return false
   }

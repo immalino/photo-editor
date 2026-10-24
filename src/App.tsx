@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect, type DragEvent } from 'react'
+import { useState, useCallback } from 'react'
 import { HeaderToolbar } from './components/layout/HeaderToolbar'
 import { CanvasViewport } from './components/canvas/CanvasViewport'
 import { CanvasTextLayer } from './components/canvas/CanvasTextLayer'
@@ -7,10 +7,13 @@ import { PropertiesPanel } from './components/properties/PropertiesPanel'
 import { BottomThumbnails } from './components/layout/BottomThumbnails'
 import { ExportSingleModal } from './components/dialogs/ExportSingleModal'
 import { ExportBatchModal } from './components/dialogs/ExportBatchModal'
+import { TemplateModal } from './components/dialogs/TemplateModal'
 import { usePhotoStore } from './stores/usePhotoStore'
 import { useLayerStore } from './stores/useLayerStore'
-import { openFileDialog } from './services/platformAdapter'
-import { createPhotoItemFromFile, isSupportedImageFile } from './services/fileReader'
+import { useHistoryStore } from './stores/useHistoryStore'
+import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts'
+import { usePhotoDrop } from './hooks/usePhotoDrop'
+import type { TextLayer } from './types/layer'
 
 export function App() {
   const { photos, activePhotoId, addPhoto, setActivePhoto, removePhoto, clearPhotos } =
@@ -27,134 +30,117 @@ export function App() {
     moveLayerUp,
     moveLayerDown,
     toggleVisibility,
+    setLayersForPhoto,
     applyLayersToAllPhotos,
     clearLayers,
   } = useLayerStore()
 
-  const [isDragging, setIsDragging] = useState(false)
-  const dragCounterRef = useRef(0)
+  const { pushState, undo, redo, canUndo, canRedo, clearHistory } = useHistoryStore()
+
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [infoMessage, setInfoMessage] = useState<string | null>(null)
   const [isExportModalOpen, setIsExportModalOpen] = useState(false)
   const [isBatchExportModalOpen, setIsBatchExportModalOpen] = useState(false)
+  const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false)
 
-  // Keyboard shortcut to delete selected layer (Del or Backspace)
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      const activeTag = document.activeElement?.tagName
-      if (activeTag === 'INPUT' || activeTag === 'TEXTAREA') {
-        return
-      }
+  const showInfo = useCallback((msg: string, duration = 3000) => {
+    setInfoMessage(msg)
+    setTimeout(() => setInfoMessage(null), duration)
+  }, [])
 
-      if ((e.key === 'Delete' || e.key === 'Backspace') && activePhotoId && selectedLayerId) {
-        e.preventDefault()
-        deleteLayer(activePhotoId, selectedLayerId)
-      }
-    }
+  const showError = useCallback((msg: string, duration = 4000) => {
+    setErrorMessage(msg)
+    setTimeout(() => setErrorMessage(null), duration)
+  }, [])
 
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [activePhotoId, selectedLayerId, deleteLayer])
-
-  const handleProcessFiles = useCallback(
-    async (files: File[]) => {
-      const validImageFiles = files.filter(isSupportedImageFile)
-      if (validImageFiles.length === 0) {
-        if (files.length > 0) {
-          setErrorMessage('Format file tidak didukung. Harap pilih file JPG, PNG, atau WebP.')
-          setTimeout(() => setErrorMessage(null), 4000)
-        }
-        return
-      }
-
-      try {
-        for (const file of validImageFiles) {
-          const photoItem = await createPhotoItemFromFile(file)
-          addPhoto(photoItem)
-        }
-      } catch (err) {
-        console.error('Error loading image file:', err)
-        setErrorMessage('Gagal memuat gambar. Pastikan file gambar valid.')
-        setTimeout(() => setErrorMessage(null), 4000)
-      }
-    },
-    [addPhoto]
-  )
-
-  const handleOpenPhoto = useCallback(async () => {
-    try {
-      const files = await openFileDialog({
-        multiple: true,
-        accept: 'image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp',
-      })
-      if (files.length > 0) {
-        await handleProcessFiles(files)
-      }
-    } catch (err) {
-      console.error('Failed to open file dialog:', err)
-    }
-  }, [handleProcessFiles])
-
-  const handleApplyToAll = useCallback(() => {
-    if (!activePhotoId || photos.length <= 1) return
-    const allIds = photos.map((p) => p.id)
-    applyLayersToAllPhotos(activePhotoId, allIds)
-    setInfoMessage(`Teks berhasil disalin ke seluruh ${photos.length} foto!`)
-    setTimeout(() => setInfoMessage(null), 3500)
-  }, [activePhotoId, photos, applyLayersToAllPhotos])
-
-  const handleRemovePhoto = useCallback(
-    (id: string) => {
-      removePhoto(id)
-      clearLayers(id)
-    },
-    [removePhoto, clearLayers]
-  )
-
-  const handleAddText = useCallback(() => {
-    if (!activePhotoId) return
-    addTextLayer(activePhotoId)
-  }, [activePhotoId, addTextLayer])
-
-  const handleDragEnter = (e: DragEvent<HTMLDivElement>) => {
-    e.preventDefault()
-    e.stopPropagation()
-    dragCounterRef.current += 1
-    if (e.dataTransfer?.items && e.dataTransfer.items.length > 0) {
-      setIsDragging(true)
-    }
-  }
-
-  const handleDragLeave = (e: DragEvent<HTMLDivElement>) => {
-    e.preventDefault()
-    e.stopPropagation()
-    dragCounterRef.current -= 1
-    if (dragCounterRef.current <= 0) {
-      dragCounterRef.current = 0
-      setIsDragging(false)
-    }
-  }
-
-  const handleDragOver = (e: DragEvent<HTMLDivElement>) => {
-    e.preventDefault()
-    e.stopPropagation()
-    e.dataTransfer.dropEffect = 'copy'
-  }
-
-  const handleDrop = async (e: DragEvent<HTMLDivElement>) => {
-    e.preventDefault()
-    e.stopPropagation()
-    dragCounterRef.current = 0
-    setIsDragging(false)
-
-    const files = e.dataTransfer?.files ? Array.from(e.dataTransfer.files) : []
-    if (files.length > 0) {
-      await handleProcessFiles(files)
-    }
-  }
+  const { isDragging, handleOpenPhoto, handleDragEnter, handleDragLeave, handleDragOver, handleDrop } =
+    usePhotoDrop({
+      onPhotoAdded: addPhoto,
+      onError: showError,
+    })
 
   const activeLayers = activePhotoId ? (layers[activePhotoId] ?? []) : []
   const selectedLayer = activeLayers.find((l) => l.id === selectedLayerId)
+
+  const handleUndo = useCallback(() => {
+    if (!activePhotoId) return
+    const prev = undo(activeLayers)
+    if (prev !== null) {
+      setLayersForPhoto(activePhotoId, prev)
+    }
+  }, [activePhotoId, activeLayers, undo, setLayersForPhoto])
+
+  const handleRedo = useCallback(() => {
+    if (!activePhotoId) return
+    const next = redo(activeLayers)
+    if (next !== null) {
+      setLayersForPhoto(activePhotoId, next)
+    }
+  }, [activePhotoId, activeLayers, redo, setLayersForPhoto])
+
+  const handleDeleteSelected = useCallback(() => {
+    if (activePhotoId && selectedLayerId) {
+      pushState(activeLayers)
+      deleteLayer(activePhotoId, selectedLayerId)
+    }
+  }, [activePhotoId, selectedLayerId, activeLayers, pushState, deleteLayer])
+
+  useKeyboardShortcuts({
+    onUndo: handleUndo,
+    onRedo: handleRedo,
+    onDelete: handleDeleteSelected,
+  })
+
+  const handleApplyToAll = useCallback(() => {
+    if (!activePhotoId || photos.length <= 1) return
+    applyLayersToAllPhotos(activePhotoId, photos.map((p) => p.id))
+    showInfo(`Teks berhasil disalin ke seluruh ${photos.length} foto!`)
+  }, [activePhotoId, photos, applyLayersToAllPhotos, showInfo])
+
+  const handleAddText = useCallback(() => {
+    if (!activePhotoId) return
+    pushState(activeLayers)
+    addTextLayer(activePhotoId)
+  }, [activePhotoId, activeLayers, pushState, addTextLayer])
+
+  const handleUpdateLayer = useCallback(
+    (layerId: string, updates: Partial<TextLayer>) => {
+      if (!activePhotoId) return
+      pushState(activeLayers)
+      updateLayer(activePhotoId, layerId, updates)
+    },
+    [activePhotoId, activeLayers, pushState, updateLayer]
+  )
+
+  const handleDeleteLayer = useCallback(
+    (layerId: string) => {
+      if (!activePhotoId) return
+      pushState(activeLayers)
+      deleteLayer(activePhotoId, layerId)
+    },
+    [activePhotoId, activeLayers, pushState, deleteLayer]
+  )
+
+  const handleApplyTemplate = useCallback(
+    (importedLayers: TextLayer[], mode: 'replace' | 'append') => {
+      if (!activePhotoId) return
+      pushState(activeLayers)
+      if (mode === 'replace') {
+        setLayersForPhoto(activePhotoId, importedLayers)
+      } else {
+        const nextZ = activeLayers.length
+        const adjusted = importedLayers.map((l, i) => ({ ...l, zIndex: nextZ + i }))
+        setLayersForPhoto(activePhotoId, [...activeLayers, ...adjusted])
+      }
+      showInfo(`Berhasil memuat ${importedLayers.length} layer dari template!`)
+    },
+    [activePhotoId, activeLayers, pushState, setLayersForPhoto, showInfo]
+  )
+
+  const handleReset = useCallback(() => {
+    clearPhotos()
+    clearHistory()
+  }, [clearPhotos, clearHistory])
 
   return (
     <div
@@ -167,8 +153,13 @@ export function App() {
       <HeaderToolbar
         activePhoto={activePhoto}
         photosCount={photos.length}
+        canUndo={canUndo()}
+        canRedo={canRedo()}
+        onUndo={handleUndo}
+        onRedo={handleRedo}
+        onOpenTemplate={() => setIsTemplateModalOpen(true)}
         onOpenPhoto={handleOpenPhoto}
-        onReset={clearPhotos}
+        onReset={handleReset}
         onAddText={handleAddText}
         onExport={() => setIsExportModalOpen(true)}
         onExportBatch={() => setIsBatchExportModalOpen(true)}
@@ -204,15 +195,10 @@ export function App() {
                       fit={fit}
                       isSelected={layer.id === selectedLayerId}
                       onSelect={selectLayer}
-                      onChange={(updates) =>
-                        activePhotoId && updateLayer(activePhotoId, layer.id, updates)
-                      }
+                      onChange={(updates) => handleUpdateLayer(layer.id, updates)}
                     />
                   ))}
-                  <CanvasTransformer
-                    selectedLayerId={selectedLayerId}
-                    updateKey={selectedLayer}
-                  />
+                  <CanvasTransformer selectedLayerId={selectedLayerId} updateKey={selectedLayer} />
                 </>
               )}
             </CanvasViewport>
@@ -223,7 +209,7 @@ export function App() {
             activePhotoId={activePhotoId}
             layersMap={layers}
             onSelectPhoto={setActivePhoto}
-            onRemovePhoto={handleRemovePhoto}
+            onRemovePhoto={(id) => { removePhoto(id); clearLayers(id) }}
             onAddMorePhotos={handleOpenPhoto}
             onApplyLayersToAll={handleApplyToAll}
             onOpenBatchExport={() => setIsBatchExportModalOpen(true)}
@@ -235,21 +221,11 @@ export function App() {
           selectedLayer={selectedLayer}
           layers={activeLayers}
           onSelectLayer={selectLayer}
-          onUpdateLayer={(layerId, updates) =>
-            activePhotoId && updateLayer(activePhotoId, layerId, updates)
-          }
-          onDeleteLayer={(layerId) =>
-            activePhotoId && deleteLayer(activePhotoId, layerId)
-          }
-          onToggleVisibility={(layerId) =>
-            activePhotoId && toggleVisibility(activePhotoId, layerId)
-          }
-          onMoveUp={(layerId) =>
-            activePhotoId && moveLayerUp(activePhotoId, layerId)
-          }
-          onMoveDown={(layerId) =>
-            activePhotoId && moveLayerDown(activePhotoId, layerId)
-          }
+          onUpdateLayer={handleUpdateLayer}
+          onDeleteLayer={handleDeleteLayer}
+          onToggleVisibility={(id) => activePhotoId && toggleVisibility(activePhotoId, id)}
+          onMoveUp={(id) => { if (activePhotoId) { pushState(activeLayers); moveLayerUp(activePhotoId, id) } }}
+          onMoveDown={(id) => { if (activePhotoId) { pushState(activeLayers); moveLayerDown(activePhotoId, id) } }}
         />
       </main>
 
@@ -268,6 +244,15 @@ export function App() {
           onClose={() => setIsBatchExportModalOpen(false)}
           photos={photos}
           layersMap={layers}
+        />
+      )}
+
+      {activePhoto && (
+        <TemplateModal
+          isOpen={isTemplateModalOpen}
+          onClose={() => setIsTemplateModalOpen(false)}
+          currentLayers={activeLayers}
+          onApplyTemplate={handleApplyTemplate}
         />
       )}
     </div>
