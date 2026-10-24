@@ -15,6 +15,9 @@ export interface LayerStoreState {
   getSelectedLayer: (photoId: string) => TextLayer | undefined
   setLayersForPhoto: (photoId: string, layers: TextLayer[]) => void
   reorderLayers: (photoId: string, layerIds: string[]) => void
+  moveLayerUp: (photoId: string, layerId: string) => void
+  moveLayerDown: (photoId: string, layerId: string) => void
+  toggleVisibility: (photoId: string, layerId: string) => void
   clearLayers: (photoId?: string) => void
 }
 
@@ -128,6 +131,63 @@ export const useLayerStore = create<LayerStoreState>((set, get) => ({
         layers: {
           ...state.layers,
           [photoId]: reordered,
+        },
+      }
+    })
+  },
+
+  moveLayerUp: (photoId: string, layerId: string) => {
+    set((state) => {
+      const list = [...(state.layers[photoId] ?? [])]
+      const idx = list.findIndex((l) => l.id === layerId)
+      if (idx === -1 || idx >= list.length - 1) return state
+
+      const temp = list[idx]
+      list[idx] = list[idx + 1]
+      list[idx + 1] = temp
+
+      const updated = list.map((item, index) => ({ ...item, zIndex: index }))
+      return {
+        layers: {
+          ...state.layers,
+          [photoId]: updated,
+        },
+      }
+    })
+  },
+
+  moveLayerDown: (photoId: string, layerId: string) => {
+    set((state) => {
+      const list = [...(state.layers[photoId] ?? [])]
+      const idx = list.findIndex((l) => l.id === layerId)
+      if (idx <= 0) return state
+
+      const temp = list[idx]
+      list[idx] = list[idx - 1]
+      list[idx - 1] = temp
+
+      const updated = list.map((item, index) => ({ ...item, zIndex: index }))
+      return {
+        layers: {
+          ...state.layers,
+          [photoId]: updated,
+        },
+      }
+    })
+  },
+
+  toggleVisibility: (photoId: string, layerId: string) => {
+    set((state) => {
+      const list = state.layers[photoId]
+      if (!list) return state
+
+      const updated = list.map((layer) =>
+        layer.id === layerId ? { ...layer, visible: !layer.visible } : layer
+      )
+      return {
+        layers: {
+          ...state.layers,
+          [photoId]: updated,
         },
       }
     })

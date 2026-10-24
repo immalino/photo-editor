@@ -3,6 +3,7 @@ import { Group, Text, Rect } from 'react-konva'
 import type Konva from 'konva'
 import type { TextLayer } from '../../types/layer'
 import { relativeToCanvas, canvasToRelative, type CanvasFitResult } from '../../utils/scaleMath'
+import { calculateBackgroundBox } from '../../utils/layerBounds'
 
 export interface CanvasTextLayerProps {
   layer: TextLayer
@@ -58,8 +59,13 @@ export function CanvasTextLayer({
   }
 
   const bg = layer.style.background
-  const scaledPadding = bg.enabled ? bg.padding * fit.scale : 0
-  const scaledRadius = bg.enabled ? bg.borderRadius * fit.scale : 0
+  const bgBox = calculateBackgroundBox({
+    textWidth: textSize.width,
+    textHeight: textSize.height,
+    padding: bg.padding,
+    borderRadius: bg.borderRadius,
+    scale: fit.scale,
+  })
 
   return (
     <Group
@@ -130,13 +136,13 @@ export function CanvasTextLayer({
       {/* Background layer if enabled */}
       {bg.enabled && (
         <Rect
-          x={-scaledPadding}
-          y={-scaledPadding}
-          width={textSize.width + scaledPadding * 2}
-          height={textSize.height + scaledPadding * 2}
+          x={bgBox.x}
+          y={bgBox.y}
+          width={bgBox.width}
+          height={bgBox.height}
           fill={bg.color}
           opacity={bg.opacity}
-          cornerRadius={scaledRadius}
+          cornerRadius={bgBox.cornerRadius}
         />
       )}
 

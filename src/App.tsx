@@ -3,6 +3,7 @@ import { HeaderToolbar } from './components/layout/HeaderToolbar'
 import { CanvasViewport } from './components/canvas/CanvasViewport'
 import { CanvasTextLayer } from './components/canvas/CanvasTextLayer'
 import { CanvasTransformer } from './components/canvas/CanvasTransformer'
+import { PropertiesPanel } from './components/properties/PropertiesPanel'
 import { usePhotoStore } from './stores/usePhotoStore'
 import { useLayerStore } from './stores/useLayerStore'
 import { openFileDialog } from './services/platformAdapter'
@@ -19,6 +20,9 @@ export function App() {
     updateLayer,
     deleteLayer,
     selectLayer,
+    moveLayerUp,
+    moveLayerDown,
+    toggleVisibility,
   } = useLayerStore()
 
   const [isDragging, setIsDragging] = useState(false)
@@ -149,33 +153,57 @@ export function App() {
       )}
 
       <main className="flex flex-1 overflow-hidden">
-        <CanvasViewport
-          photo={activePhoto}
-          onOpenFile={handleOpenPhoto}
-          isDragging={isDragging}
-          onDeselect={() => selectLayer(null)}
-        >
-          {(fit) => (
-            <>
-              {activeLayers.map((layer) => (
-                <CanvasTextLayer
-                  key={layer.id}
-                  layer={layer}
-                  fit={fit}
-                  isSelected={layer.id === selectedLayerId}
-                  onSelect={selectLayer}
-                  onChange={(updates) =>
-                    activePhotoId && updateLayer(activePhotoId, layer.id, updates)
-                  }
+        <div className="relative flex flex-1 overflow-hidden">
+          <CanvasViewport
+            photo={activePhoto}
+            onOpenFile={handleOpenPhoto}
+            isDragging={isDragging}
+            onDeselect={() => selectLayer(null)}
+          >
+            {(fit) => (
+              <>
+                {activeLayers.map((layer) => (
+                  <CanvasTextLayer
+                    key={layer.id}
+                    layer={layer}
+                    fit={fit}
+                    isSelected={layer.id === selectedLayerId}
+                    onSelect={selectLayer}
+                    onChange={(updates) =>
+                      activePhotoId && updateLayer(activePhotoId, layer.id, updates)
+                    }
+                  />
+                ))}
+                <CanvasTransformer
+                  selectedLayerId={selectedLayerId}
+                  updateKey={selectedLayer}
                 />
-              ))}
-              <CanvasTransformer
-                selectedLayerId={selectedLayerId}
-                updateKey={selectedLayer}
-              />
-            </>
-          )}
-        </CanvasViewport>
+              </>
+            )}
+          </CanvasViewport>
+        </div>
+
+        <PropertiesPanel
+          photoId={activePhotoId}
+          selectedLayer={selectedLayer}
+          layers={activeLayers}
+          onSelectLayer={selectLayer}
+          onUpdateLayer={(layerId, updates) =>
+            activePhotoId && updateLayer(activePhotoId, layerId, updates)
+          }
+          onDeleteLayer={(layerId) =>
+            activePhotoId && deleteLayer(activePhotoId, layerId)
+          }
+          onToggleVisibility={(layerId) =>
+            activePhotoId && toggleVisibility(activePhotoId, layerId)
+          }
+          onMoveUp={(layerId) =>
+            activePhotoId && moveLayerUp(activePhotoId, layerId)
+          }
+          onMoveDown={(layerId) =>
+            activePhotoId && moveLayerDown(activePhotoId, layerId)
+          }
+        />
       </main>
     </div>
   )
