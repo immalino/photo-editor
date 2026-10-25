@@ -4,16 +4,18 @@ export interface KeyboardShortcutsOptions {
   onUndo?: () => void
   onRedo?: () => void
   onDelete?: () => void
+  onNudge?: (dx: number, dy: number) => void
   enabled?: boolean
 }
 
 /**
- * Global keyboard shortcuts hook for Undo, Redo, and Delete actions.
+ * Global keyboard shortcuts hook for Undo, Redo, Delete, and Arrow Nudge actions.
  */
 export function useKeyboardShortcuts({
   onUndo,
   onRedo,
   onDelete,
+  onNudge,
   enabled = true,
 }: KeyboardShortcutsOptions) {
   useEffect(() => {
@@ -61,6 +63,35 @@ export function useKeyboardShortcuts({
           event.preventDefault()
           onDelete()
         }
+        return
+      }
+
+      // Arrow Nudging: Arrow keys (1px or 10px with Shift)
+      if (
+        onNudge &&
+        !isModifier &&
+        !event.altKey &&
+        (event.key === 'ArrowUp' ||
+          event.key === 'ArrowDown' ||
+          event.key === 'ArrowLeft' ||
+          event.key === 'ArrowRight')
+      ) {
+        event.preventDefault()
+        const step = event.shiftKey ? 10 : 1
+        switch (event.key) {
+          case 'ArrowUp':
+            onNudge(0, -step)
+            break
+          case 'ArrowDown':
+            onNudge(0, step)
+            break
+          case 'ArrowLeft':
+            onNudge(-step, 0)
+            break
+          case 'ArrowRight':
+            onNudge(step, 0)
+            break
+        }
       }
     }
 
@@ -68,5 +99,5 @@ export function useKeyboardShortcuts({
     return () => {
       window.removeEventListener('keydown', handleKeyDown)
     }
-  }, [onUndo, onRedo, onDelete, enabled])
+  }, [onUndo, onRedo, onDelete, onNudge, enabled])
 }

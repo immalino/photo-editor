@@ -1,6 +1,8 @@
 import { Sliders, X, Trash2 } from 'lucide-react'
 import type { TextLayer } from '../../types/layer'
+import type { PhotoItem } from '../../types/photo'
 import { ContentProperty } from './ContentProperty'
+import { PositionProperty } from './PositionProperty'
 import { TypographyProperty } from './TypographyProperty'
 import { StrokeProperty } from './StrokeProperty'
 import { ShadowProperty } from './ShadowProperty'
@@ -9,6 +11,7 @@ import { LayerOrderList } from './LayerOrderList'
 
 interface PropertiesPanelProps {
   photoId: string | null
+  photo?: PhotoItem
   selectedLayer: TextLayer | undefined
   layers: TextLayer[]
   onSelectLayer: (layerId: string | null) => void
@@ -17,10 +20,12 @@ interface PropertiesPanelProps {
   onToggleVisibility: (layerId: string) => void
   onMoveUp: (layerId: string) => void
   onMoveDown: (layerId: string) => void
+  onOpenFontManager?: () => void
 }
 
 export function PropertiesPanel({
   photoId,
+  photo,
   selectedLayer,
   layers,
   onSelectLayer,
@@ -29,6 +34,7 @@ export function PropertiesPanel({
   onToggleVisibility,
   onMoveUp,
   onMoveDown,
+  onOpenFontManager,
 }: PropertiesPanelProps) {
   if (!photoId) {
     return (
@@ -38,12 +44,15 @@ export function PropertiesPanel({
     )
   }
 
+  const photoWidth = photo?.originalWidth || 1920
+  const photoHeight = photo?.originalHeight || 1080
+
   return (
     <aside className="flex h-full w-80 flex-col border-l border-slate-800 bg-slate-950/95 backdrop-blur-sm">
       {/* Panel Header */}
       <div className="flex h-11 items-center justify-between border-b border-slate-800 px-4">
         <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-slate-300">
-          <Sliders className="h-4 w-4 text-blue-400" />
+          <Sliders className="h-4 w-4 text-indigo-400" />
           <span>Panel Properti</span>
         </div>
         {selectedLayer && (
@@ -86,6 +95,15 @@ export function PropertiesPanel({
           <div className="space-y-3 pt-1">
             <ContentProperty
               layer={selectedLayer}
+              photoWidth={photoWidth}
+              photoHeight={photoHeight}
+              onOpenFontManager={onOpenFontManager}
+              onChange={(updates) => onUpdateLayer(selectedLayer.id, updates)}
+            />
+
+            <PositionProperty
+              layer={selectedLayer}
+              photo={photo}
               onChange={(updates) => onUpdateLayer(selectedLayer.id, updates)}
             />
 
@@ -96,16 +114,22 @@ export function PropertiesPanel({
 
             <StrokeProperty
               layer={selectedLayer}
+              photoWidth={photoWidth}
+              photoHeight={photoHeight}
               onChange={(updates) => onUpdateLayer(selectedLayer.id, updates)}
             />
 
             <ShadowProperty
               layer={selectedLayer}
+              photoWidth={photoWidth}
+              photoHeight={photoHeight}
               onChange={(updates) => onUpdateLayer(selectedLayer.id, updates)}
             />
 
             <BackgroundProperty
               layer={selectedLayer}
+              photoWidth={photoWidth}
+              photoHeight={photoHeight}
               onChange={(updates) => onUpdateLayer(selectedLayer.id, updates)}
             />
           </div>

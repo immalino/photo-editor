@@ -4,6 +4,7 @@ import {
   parseFileName,
   formatExportFileName,
   openFileDialog,
+  openFolderDialog,
   saveFileBlob,
 } from '../services/platformAdapter'
 
@@ -121,6 +122,31 @@ describe('platformAdapter', () => {
       const files = await promise
       expect(files).toHaveLength(1)
       expect(files[0].name).toBe('test.png')
+      expect(document.querySelector('input[type="file"]')).toBeNull()
+    })
+  })
+
+  describe('openFolderDialog()', () => {
+    it('creates an input element with webkitdirectory and filters by extension', async () => {
+      const fontFile = new File(['font'], 'Roboto.ttf', { type: 'font/ttf' })
+      const textFile = new File(['doc'], 'notes.txt', { type: 'text/plain' })
+
+      const promise = openFolderDialog({ extensions: ['ttf', 'otf'] })
+
+      const input = document.querySelector('input[type="file"]') as HTMLInputElement
+      expect(input).not.toBeNull()
+      expect(input.hasAttribute('webkitdirectory')).toBe(true)
+
+      Object.defineProperty(input, 'files', {
+        value: [fontFile, textFile],
+        configurable: true,
+      })
+
+      input.dispatchEvent(new Event('change'))
+
+      const files = await promise
+      expect(files).toHaveLength(1)
+      expect(files[0].name).toBe('Roboto.ttf')
       expect(document.querySelector('input[type="file"]')).toBeNull()
     })
   })

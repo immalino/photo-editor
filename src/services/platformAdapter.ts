@@ -164,6 +164,118 @@ export async function openFileDialog(
   })
 }
 
+export interface OpenFolderOptions {
+  extensions?: string[]
+}
+
+/**
+ * Opens a folder picker dialog to select an entire folder of files.
+ * In Tauri desktop shell, uses native directory picker and reads files matching extensions.
+ * In web browsers, uses an input with webkitdirectory.
+ */
+export async function openFolderDialog(
+  options: OpenFolderOptions = {}
+): Promise<File[]> {
+  const { extensions = ['ttf', 'otf', 'woff', 'woff2'] } = options
+  const cleanExts = extensions.map((ext) => ext.toLowerCase().replace(/^\./, ''))
+
+  if (isTauri()) {
+    try {
+      const dialog = await import('@tauri-apps/plugin-dialog')
+      const fs = await import('@tauri-apps/plugin-fs')
+
+      const selected = await dialog.open({
+        directory: true,
+        multiple: false,
+      })
+
+      if (!selected) return []
+
+      const folderPath = typeof selected === 'string' ? selected : selected[0]
+      if (!folderPath) return []
+
+      const entries = await fs.readDir(folderPath)
+      const files: File[] = []
+
+      for (const entry of entries) {
+        if (!entry.isFile && !entry.name) continue
+        const { extension } = parseFileName(entry.name)
+        if (cleanExts.length > 0 && !cleanExts.includes(extension)) continue
+
+        try {
+          const filePath = `${folderPath}/${entry.name}`
+          const contents = await fs.readFile(filePath)
+          const file = new File([contents], entry.name, {
+            type:
+              extension === 'ttf'
+                ? 'font/ttf'
+                : extension === 'otf'
+                  ? 'font/otf'
+                  : 'application/octet-stream',
+          })
+          files.push(file)
+        } catch (e) {
+          console.warn(`Could not read file ${entry.name}:`, e)
+        }
+      }
+
+      return files
+    } catch (err) {
+      console.warn('Tauri open folder dialog failed, falling back to browser dialog:', err)
+    }
+  }
+
+  if (typeof document === 'undefined') {
+    return []
+  }
+
+  return new Promise((resolve) => {
+    const input = document.createElement('input')
+    input.type = 'file'
+    input.style.display = 'none'
+    input.multiple = true
+    input.setAttribute('webkitdirectory', '')
+    input.setAttribute('directory', '')
+
+    let hasHandled = false
+
+    const cleanup = () => {
+      if (document.body.contains(input)) {
+        document.body.removeChild(input)
+      }
+    }
+
+    input.onchange = () => {
+      hasHandled = true
+      const rawFiles = input.files ? Array.from(input.files) : []
+      cleanup()
+      const filtered =
+        cleanExts.length > 0
+          ? rawFiles.filter((f) => {
+              const ext = f.name.toLowerCase().split('.').pop()
+              return ext ? cleanExts.includes(ext) : false
+            })
+          : rawFiles
+      resolve(filtered)
+    }
+
+    const onWindowFocus = () => {
+      setTimeout(() => {
+        if (!hasHandled) {
+          window.removeEventListener('focus', onWindowFocus)
+          cleanup()
+          resolve([])
+        }
+      }, 500)
+    }
+
+    window.addEventListener('focus', onWindowFocus, { once: true })
+
+    document.body.appendChild(input)
+    input.click()
+  })
+}
+
 /**
  * Triggers saving a Blob to the user's computer.
  * Supports Tauri native file save dialog and browser fallback download link.

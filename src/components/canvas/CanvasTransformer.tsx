@@ -5,18 +5,20 @@ import type Konva from 'konva'
 export interface CanvasTransformerProps {
   selectedLayerId?: string | null
   updateKey?: unknown
+  isEditing?: boolean
 }
 
 export function CanvasTransformer({
   selectedLayerId,
   updateKey,
+  isEditing = false,
 }: CanvasTransformerProps) {
   const trRef = useRef<Konva.Transformer>(null)
 
   useEffect(() => {
     if (!trRef.current) return
     const stage = trRef.current.getStage()
-    if (!stage || !selectedLayerId) {
+    if (!stage || !selectedLayerId || isEditing) {
       trRef.current.nodes([])
       trRef.current.getLayer()?.batchDraw()
       return
@@ -30,7 +32,7 @@ export function CanvasTransformer({
       trRef.current.nodes([])
     }
     trRef.current.getLayer()?.batchDraw()
-  }, [selectedLayerId, updateKey])
+  }, [selectedLayerId, updateKey, isEditing])
 
   return (
     <Transformer

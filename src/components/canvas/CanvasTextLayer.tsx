@@ -1,31 +1,50 @@
-import { useRef, useLayoutEffect, useState } from 'react'
+import { useRef, useLayoutEffect, useState, useEffect } from 'react'
 import { Group, Text, Rect } from 'react-konva'
 import type Konva from 'konva'
 import type { TextLayer } from '../../types/layer'
 import { relativeToCanvas, canvasToRelative, type CanvasFitResult } from '../../utils/scaleMath'
 import { calculateBackgroundBox } from '../../utils/layerBounds'
+import { resolveCanvasStyle, pxToPercent } from '../../utils/unitMath'
+import { calculateSnap } from '../../utils/snapEngine'
+import { useSnapStore } from '../../stores/useSnapStore'
 
 export interface CanvasTextLayerProps {
   layer: TextLayer
   fit: CanvasFitResult
   isSelected: boolean
+  isEditing?: boolean
+  zoom?: number
   onSelect: (layerId: string) => void
   onChange: (updates: Partial<TextLayer>) => void
+  onStartEditing?: (layerId: string) => void
 }
 
 export function CanvasTextLayer({
   layer,
   fit,
   isSelected: _isSelected = false,
+  isEditing = false,
+  zoom = 1,
   onSelect,
   onChange,
+  onStartEditing,
 }: CanvasTextLayerProps) {
   const groupRef = useRef<Konva.Group>(null)
   const textRef = useRef<Konva.Text>(null)
   const [textSize, setTextSize] = useState({ width: 0, height: 0 })
 
+  const { snapEnabled, snapToCenter, snapToEdges, snapTolerance, setActiveGuides, clearActiveGuides } =
+    useSnapStore()
+
+  // Clean up any remaining guidelines on unmount
+  useEffect(() => {
+    return () => {
+      clearActiveGuides()
+    }
+  }, [clearActiveGuides])
+
   const pos = relativeToCanvas(layer.relativeX, layer.relativeY, fit)
-  const scaledFontSize = Math.max(8, Math.round(layer.style.fontSize * fit.scale))
+  const resolved = resolveCanvasStyle(layer, fit)
 
   // Determine fontStyle string for Konva
   const fontStyle =
@@ -47,11 +66,13 @@ export function CanvasTextLayer({
     }
   }, [
     layer.text,
-    scaledFontSize,
+    resolved.fontSize,
     layer.style.fontFamily,
     layer.style.bold,
     layer.style.italic,
     fit.scale,
+    fit.renderedWidth,
+    fit.renderedHeight,
   ])
 
   if (!layer.visible) {
@@ -62,9 +83,9 @@ export function CanvasTextLayer({
   const bgBox = calculateBackgroundBox({
     textWidth: textSize.width,
     textHeight: textSize.height,
-    padding: bg.padding,
-    borderRadius: bg.borderRadius,
-    scale: fit.scale,
+    padding: resolved.background.padding,
+    borderRadius: resolved.background.borderRadius,
+    scale: 1, // Already resolved to canvas scale
   })
 
   return (
@@ -74,7 +95,8 @@ export function CanvasTextLayer({
       x={pos.x}
       y={pos.y}
       rotation={layer.rotation}
-      draggable
+      draggable={!isEditing}
+      opacity={isEditing ? 0.2 : 1}
       onClick={(e) => {
         e.cancelBubble = true
         onSelect(layer.id)
@@ -85,18 +107,66 @@ export function CanvasTextLayer({
       }}
       onDblClick={(e) => {
         e.cancelBubble = true
-        const newText = window.prompt('Ubah isi teks:', layer.text)
-        if (newText !== null && newText.trim() !== '') {
-          onChange({ text: newText })
-        }
+        onSelect(layer.id)
+        onStartEditing?.(layer.id)
       }}
       onDragStart={(e) => {
         e.cancelBubble = true
         onSelect(layer.id)
+        clearActiveGuides()
+      }}
+      onDragMove={(e) => {
+        e.cancelBubble = true
+        const node = groupRef.current || (e.target as unknown as Konva.Group)
+        if (!node) return
+
+        // Bypass snapping if Alt is held or snap is turned off
+        const nativeEvt = e.evt as MouseEvent | TouchEvent | undefined
+        const isAltPressed = nativeEvt && 'altKey' in nativeEvt ? nativeEvt.altKey : false
+
+        if (!snapEnabled || isAltPressed) {
+          clearActiveGuides()
+          return
+        }
+
+        const parentNode = node.getParent()
+        const objBox = node.getClientRect({ relativeTo: parentNode || undefined, skipShadow: true })
+
+        const photoBox = {
+          x: fit.x,
+          y: fit.y,
+          width: fit.renderedWidth,
+          height: fit.renderedHeight,
+        }
+
+        const effectiveZoom = zoom && zoom > 0 ? zoom : 1
+        const threshold = snapTolerance / effectiveZoom
+
+        const snapResult = calculateSnap({
+          draggedBounds: objBox,
+          photoBounds: photoBox,
+          threshold,
+          snapToCenter,
+          snapToEdges,
+        })
+
+        if (snapResult.deltaX !== 0) {
+          node.x(node.x() + snapResult.deltaX)
+        }
+        if (snapResult.deltaY !== 0) {
+          node.y(node.y() + snapResult.deltaY)
+        }
+
+        if (snapResult.guides.length > 0) {
+          setActiveGuides(snapResult.guides)
+        } else {
+          clearActiveGuides()
+        }
       }}
       onDragEnd={(e) => {
         e.cancelBubble = true
-        const node = groupRef.current || e.target
+        clearActiveGuides()
+        const node = groupRef.current || (e.target as unknown as Konva.Group)
         const newPos = canvasToRelative(node.x(), node.y(), fit)
         onChange({
           relativeX: newPos.relX,
@@ -109,24 +179,44 @@ export function CanvasTextLayer({
         const scaleX = node.scaleX()
         const newPos = canvasToRelative(node.x(), node.y(), fit)
         const newRotation = Math.round(node.rotation())
-        const newFontSize = Math.max(8, Math.round(layer.style.fontSize * scaleX))
 
         node.scaleX(1)
         node.scaleY(1)
 
-        onChange({
-          relativeX: newPos.relX,
-          relativeY: newPos.relY,
-          rotation: newRotation,
-          style: {
-            ...layer.style,
-            fontSize: newFontSize,
-          },
-        })
+        if (layer.style.fontSizeUnit === '%') {
+          const basis =
+            layer.style.fontSizeRef === 'height'
+              ? fit.renderedHeight
+              : fit.renderedWidth
+          const currentPx = resolved.fontSize * scaleX
+          const newPct = pxToPercent(currentPx, basis)
+          onChange({
+            relativeX: newPos.relX,
+            relativeY: newPos.relY,
+            rotation: newRotation,
+            style: {
+              ...layer.style,
+              fontSizePercent: newPct,
+            },
+          })
+        } else {
+          const newFontSize = Math.max(8, Math.round(layer.style.fontSize * scaleX))
+          onChange({
+            relativeX: newPos.relX,
+            relativeY: newPos.relY,
+            rotation: newRotation,
+            style: {
+              ...layer.style,
+              fontSize: newFontSize,
+            },
+          })
+        }
       }}
       onMouseEnter={(e) => {
-        const stage = e.target.getStage()
-        if (stage) stage.container().style.cursor = 'move'
+        if (!isEditing) {
+          const stage = e.target.getStage()
+          if (stage) stage.container().style.cursor = 'move'
+        }
       }}
       onMouseLeave={(e) => {
         const stage = e.target.getStage()
@@ -150,24 +240,22 @@ export function CanvasTextLayer({
       <Text
         ref={textRef}
         text={layer.text}
-        fontSize={scaledFontSize}
+        fontSize={resolved.fontSize}
         fontFamily={layer.style.fontFamily}
         fontStyle={fontStyle}
         fill={layer.style.fill}
         opacity={layer.style.opacity}
         align={layer.style.align}
         stroke={layer.style.stroke.enabled ? layer.style.stroke.color : undefined}
-        strokeWidth={
-          layer.style.stroke.enabled ? Math.max(1, layer.style.stroke.width * fit.scale) : 0
-        }
+        strokeWidth={resolved.strokeWidth}
         fillAfterStrokeEnabled
         shadowColor={layer.style.shadow.enabled ? layer.style.shadow.color : undefined}
-        shadowBlur={layer.style.shadow.enabled ? layer.style.shadow.blur * fit.scale : 0}
+        shadowBlur={resolved.shadow.blur}
         shadowOffset={
           layer.style.shadow.enabled
             ? {
-                x: layer.style.shadow.offsetX * fit.scale,
-                y: layer.style.shadow.offsetY * fit.scale,
+                x: resolved.shadow.offsetX,
+                y: resolved.shadow.offsetY,
               }
             : undefined
         }

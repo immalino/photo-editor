@@ -1,6 +1,5 @@
 import {
   Image as ImageIcon,
-  FolderOpen,
   RotateCcw,
   Type,
   Download,
@@ -8,6 +7,8 @@ import {
   Undo2,
   Redo2,
   FileCode,
+  FolderOpen,
+  Baseline,
 } from 'lucide-react'
 import type { PhotoItem } from '../../types/photo'
 
@@ -19,6 +20,7 @@ export interface HeaderToolbarProps {
   onUndo?: () => void
   onRedo?: () => void
   onOpenTemplate?: () => void
+  onOpenFontManager?: () => void
   onOpenPhoto: () => void
   onReset?: () => void
   onAddText?: () => void
@@ -34,6 +36,7 @@ export function HeaderToolbar({
   onUndo,
   onRedo,
   onOpenTemplate,
+  onOpenFontManager,
   onOpenPhoto,
   onReset,
   onAddText,
@@ -65,6 +68,17 @@ export function HeaderToolbar({
       </div>
 
       <div className="flex items-center gap-2">
+        {/* Open Photo Button */}
+        <button
+          type="button"
+          onClick={onOpenPhoto}
+          className="inline-flex items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-800/80 px-2.5 py-1.5 text-xs text-slate-200 transition hover:bg-slate-700 active:scale-95 shadow-sm"
+          title="Buka Foto dari Komputer"
+        >
+          <FolderOpen className="h-3.5 w-3.5 text-indigo-400" />
+          <span className="hidden sm:inline">Buka Foto</span>
+        </button>
+
         {/* Undo & Redo buttons */}
         {activePhoto && (
           <div className="flex items-center rounded-lg border border-slate-700/80 bg-slate-800/60 p-0.5 mr-1">
@@ -91,13 +105,26 @@ export function HeaderToolbar({
           </div>
         )}
 
+        {/* Font Manager Button */}
+        {onOpenFontManager && (
+          <button
+            type="button"
+            onClick={onOpenFontManager}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-800/80 px-2.5 py-1.5 text-xs text-slate-200 transition hover:bg-slate-700 active:scale-95 shadow-sm"
+            title="Kelola Font Kustom (Upload font .ttf, .otf, dll)"
+          >
+            <Baseline className="h-3.5 w-3.5 text-indigo-400" />
+            <span className="hidden sm:inline">Font</span>
+          </button>
+        )}
+
         {/* Template Button */}
         {activePhoto && onOpenTemplate && (
           <button
             type="button"
             onClick={onOpenTemplate}
             className="inline-flex items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-800/80 px-2.5 py-1.5 text-xs text-slate-200 transition hover:bg-slate-700 active:scale-95 shadow-sm"
-            title="Kelola Template Layer Teks (.json)"
+            title="Pustaka & Template Layer Teks"
           >
             <FileCode className="h-3.5 w-3.5 text-amber-400" />
             <span className="hidden sm:inline">Template</span>
@@ -140,24 +167,15 @@ export function HeaderToolbar({
           </button>
         )}
 
-        <button
-          type="button"
-          onClick={onOpenPhoto}
-          className="inline-flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-800/80 px-3 py-1.5 text-xs font-medium text-slate-200 transition hover:bg-slate-700 active:scale-95"
-        >
-          <FolderOpen className="h-4 w-4" />
-          <span>Buka Foto</span>
-        </button>
-
-        {activePhoto && onReset && (
+        {photosCount > 0 && onReset && (
           <button
             type="button"
             onClick={onReset}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-800/80 px-2.5 py-1.5 text-xs text-slate-300 transition hover:bg-slate-700 active:scale-95"
-            title="Tutup Foto"
+            className="rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-800 hover:text-slate-200"
+            title="Tutup & Reset Semua Foto"
+            aria-label="Tutup & Reset Semua Foto"
           >
-            <RotateCcw className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Tutup</span>
+            <RotateCcw className="h-4 w-4" />
           </button>
         )}
       </div>

@@ -2,6 +2,12 @@ import type { ExportConfig, ExportFormat } from '../types/export'
 import type { PhotoItem } from '../types/photo'
 import type { TextLayer } from '../types/layer'
 import { calculateBackgroundBox } from '../utils/layerBounds'
+import {
+  resolveFontSize,
+  resolveStrokeWidth,
+  resolveShadow,
+  resolveBackground,
+} from '../utils/unitMath'
 
 /**
  * Normalizes export quality value (0.01 to 1.0).
@@ -107,7 +113,7 @@ function renderSingleTextLayer(
         : layer.style.italic
           ? 'italic'
           : 'normal'
-  const fontSize = Math.max(1, layer.style.fontSize)
+  const fontSize = resolveFontSize(layer, photoWidth, photoHeight)
   const fontFamily = layer.style.fontFamily || 'Arial'
   const lineHeight = fontSize * 1.2
   const lines = (layer.text || '').split('\n')
@@ -137,11 +143,12 @@ function renderSingleTextLayer(
   // Draw background box if enabled
   if (layer.style.background?.enabled) {
     const bg = layer.style.background
+    const bgRes = resolveBackground(layer, photoWidth, photoHeight)
     const bgBox = calculateBackgroundBox({
       textWidth: maxLineWidth,
       textHeight: totalTextHeight,
-      padding: bg.padding,
-      borderRadius: bg.borderRadius,
+      padding: bgRes.padding,
+      borderRadius: bgRes.borderRadius,
       scale: 1,
     })
 
@@ -156,6 +163,9 @@ function renderSingleTextLayer(
   // Draw each text line
   ctx.globalAlpha = layer.style.opacity ?? 1
 
+  const shadowRes = resolveShadow(layer, photoWidth, photoHeight)
+  const strokeWidth = resolveStrokeWidth(layer, photoWidth, photoHeight)
+
   lines.forEach((line, index) => {
     let lineX = 0
     if (layer.style.align === 'center') {
@@ -168,9 +178,9 @@ function renderSingleTextLayer(
     // Configure shadow
     if (layer.style.shadow?.enabled) {
       ctx.shadowColor = layer.style.shadow.color
-      ctx.shadowBlur = layer.style.shadow.blur
-      ctx.shadowOffsetX = layer.style.shadow.offsetX
-      ctx.shadowOffsetY = layer.style.shadow.offsetY
+      ctx.shadowBlur = shadowRes.blur
+      ctx.shadowOffsetX = shadowRes.offsetX
+      ctx.shadowOffsetY = shadowRes.offsetY
     } else {
       ctx.shadowColor = 'transparent'
       ctx.shadowBlur = 0
@@ -179,9 +189,9 @@ function renderSingleTextLayer(
     }
 
     // Configure stroke
-    if (layer.style.stroke?.enabled && layer.style.stroke.width > 0) {
+    if (layer.style.stroke?.enabled && strokeWidth > 0) {
       ctx.strokeStyle = layer.style.stroke.color
-      ctx.lineWidth = layer.style.stroke.width * 2
+      ctx.lineWidth = strokeWidth * 2
       ctx.strokeText(line, lineX, lineY)
 
       // Avoid double shadow on fill after stroke
@@ -222,6 +232,15 @@ export async function renderPhotoWithLayers(
   const ctx = canvas.getContext('2d')
   if (!ctx) {
     throw new Error('Canvas 2D context is not supported or failed to initialize')
+  }
+
+  // Wait for all active web fonts to load
+  if (typeof document !== 'undefined' && document.fonts?.ready) {
+    try {
+      await document.fonts.ready
+    } catch {
+      // Continue rendering if font ready check fails
+    }
   }
 
   // Load and draw original photo

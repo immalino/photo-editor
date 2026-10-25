@@ -1,8 +1,6 @@
-export interface FontOption {
-  name: string
-  value: string
-  category?: 'sans-serif' | 'serif' | 'monospace' | 'display'
-}
+import type { FontOption } from '../types/font'
+
+export type { FontOption }
 
 export const WINDOWS_STANDARD_FONTS: FontOption[] = [
   { name: 'Arial', value: 'Arial', category: 'sans-serif' },

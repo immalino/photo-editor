@@ -216,7 +216,7 @@ describe('exportEngine', () => {
       )
     })
 
-    it('renders base image and visible layers at full resolution onto canvas', async () => {
+    const createMockCanvas = () => {
       const drawImageMock = vi.fn()
       const fillTextMock = vi.fn()
       const strokeTextMock = vi.fn()
@@ -258,6 +258,12 @@ describe('exportEngine', () => {
         toBlob: toBlobMock,
       } as unknown as HTMLCanvasElement
 
+      return { mockCanvas, mockContext, drawImageMock, fillTextMock, strokeTextMock, toBlobMock }
+    }
+
+    it('renders base image and visible layers at full resolution onto canvas', async () => {
+      const { mockCanvas, mockContext, drawImageMock, fillTextMock, strokeTextMock } = createMockCanvas()
+
       const resultBlob = await renderPhotoWithLayers(samplePhoto, sampleLayers, config, mockCanvas)
 
       expect(mockCanvas.width).toBe(2000)
@@ -267,6 +273,73 @@ describe('exportEngine', () => {
       expect(fillTextMock).toHaveBeenCalled()
       expect(strokeTextMock).toHaveBeenCalled()
       expect(resultBlob).toBeInstanceOf(Blob)
+    })
+
+    it('renders layers configured with percentage units', async () => {
+      const { mockCanvas, mockContext } = createMockCanvas()
+      const percentLayers: TextLayer[] = [
+        {
+          id: 'layer-pct',
+          text: 'Percentage Layer',
+          relativeX: 0.1,
+          relativeY: 0.1,
+          rotation: 0,
+          zIndex: 1,
+          visible: true,
+          style: {
+            fontFamily: 'Arial',
+            fontSize: 20,
+            fontSizeUnit: '%',
+            fontSizeRef: 'width',
+            fontSizePercent: 5, // 5% of 2000 = 100px
+            fill: '#ffffff',
+            opacity: 1,
+            align: 'left',
+            bold: false,
+            italic: false,
+            stroke: {
+              enabled: true,
+              color: '#000000',
+              width: 2,
+              unit: '%',
+              ref: 'width',
+              widthPercent: 0.5,
+            },
+            shadow: {
+              enabled: true,
+              color: 'rgba(0,0,0,0.5)',
+              blur: 5,
+              offsetX: 2,
+              offsetY: 2,
+              unit: '%',
+              ref: 'height',
+              blurPercent: 1,
+              offsetXPercent: 0.5,
+              offsetYPercent: 0.5,
+            },
+            background: {
+              enabled: true,
+              color: '#000000',
+              opacity: 0.5,
+              padding: 10,
+              borderRadius: 5,
+              unit: '%',
+              ref: 'width',
+              paddingPercent: 1,
+              borderRadiusPercent: 0.5,
+            },
+          },
+        },
+      ]
+
+      const resultBlob = await renderPhotoWithLayers(
+        samplePhoto,
+        percentLayers,
+        config,
+        mockCanvas
+      )
+      expect(resultBlob).toBeInstanceOf(Blob)
+      expect(mockContext.font).toContain('100px Arial')
     })
 
     it('handles canvas without 2D context by rejecting', async () => {

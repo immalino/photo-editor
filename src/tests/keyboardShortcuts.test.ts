@@ -63,6 +63,57 @@ describe('useKeyboardShortcuts', () => {
     expect(onDelete).toHaveBeenCalledTimes(1)
   })
 
+  it('triggers onNudge with 1px on Arrow keys and 10px on Shift+Arrow', () => {
+    const onNudge = vi.fn()
+    renderHook(() => useKeyboardShortcuts({ onNudge }))
+
+    // ArrowUp -> 0, -1
+    window.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true, cancelable: true })
+    )
+    expect(onNudge).toHaveBeenLastCalledWith(0, -1)
+
+    // ArrowDown -> 0, 1
+    window.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true })
+    )
+    expect(onNudge).toHaveBeenLastCalledWith(0, 1)
+
+    // ArrowLeft -> -1, 0
+    window.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true, cancelable: true })
+    )
+    expect(onNudge).toHaveBeenLastCalledWith(-1, 0)
+
+    // ArrowRight -> 1, 0
+    window.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true, cancelable: true })
+    )
+    expect(onNudge).toHaveBeenLastCalledWith(1, 0)
+
+    // Shift + ArrowRight -> 10, 0
+    window.dispatchEvent(
+      new KeyboardEvent('keydown', {
+        key: 'ArrowRight',
+        shiftKey: true,
+        bubbles: true,
+        cancelable: true,
+      })
+    )
+    expect(onNudge).toHaveBeenLastCalledWith(10, 0)
+
+    // Shift + ArrowUp -> 0, -10
+    window.dispatchEvent(
+      new KeyboardEvent('keydown', {
+        key: 'ArrowUp',
+        shiftKey: true,
+        bubbles: true,
+        cancelable: true,
+      })
+    )
+    expect(onNudge).toHaveBeenLastCalledWith(0, -10)
+  })
+
   it('does not trigger shortcuts when target is an input element', () => {
     const onUndo = vi.fn()
     renderHook(() => useKeyboardShortcuts({ onUndo }))
