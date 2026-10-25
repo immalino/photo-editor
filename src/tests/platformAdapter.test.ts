@@ -6,6 +6,9 @@ import {
   openFileDialog,
   openFolderDialog,
   saveFileBlob,
+  getInitialFiles,
+  loadFileFromPath,
+  loadFilesFromPaths,
 } from '../services/platformAdapter'
 
 describe('platformAdapter', () => {
@@ -175,6 +178,25 @@ describe('platformAdapter', () => {
       expect(success).toBe(true)
       expect(clickSpy).toHaveBeenCalled()
       clickSpy.mockRestore()
+    })
+  })
+
+  describe('getInitialFiles()', () => {
+    it('returns empty array when not in Tauri environment', async () => {
+      const files = await getInitialFiles()
+      expect(files).toEqual([])
+    })
+  })
+
+  describe('loadFileFromPath() and loadFilesFromPaths()', () => {
+    it('returns null when not in Tauri environment', async () => {
+      const file = await loadFileFromPath('/path/to/test.png')
+      expect(file).toBeNull()
+    })
+
+    it('returns empty array for loadFilesFromPaths when not in Tauri', async () => {
+      const files = await loadFilesFromPaths(['/path/to/1.png', '/path/to/2.jpg'])
+      expect(files).toEqual([])
     })
   })
 })

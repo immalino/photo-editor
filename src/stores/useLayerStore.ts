@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import type { TextLayer } from '../types/layer'
 import { DEFAULT_TEXT_STYLE } from '../constants/defaultStyles'
+import { getLastUsedTextStyle, saveLastUsedTextStyle } from '../services/textStyleStorage'
 
 export interface LayerStoreState {
   layers: Record<string, TextLayer[]>
@@ -28,6 +29,7 @@ export const useLayerStore = create<LayerStoreState>((set, get) => ({
 
   addTextLayer: (photoId: string, overrides = {}) => {
     const current = get().layers[photoId] ?? []
+    const lastUsedStyle = getLastUsedTextStyle()
     const newLayer: TextLayer = {
       id: crypto.randomUUID ? crypto.randomUUID() : `layer-${Date.now()}-${Math.random()}`,
       text: 'Teks Baru',
@@ -36,7 +38,11 @@ export const useLayerStore = create<LayerStoreState>((set, get) => ({
       rotation: 0,
       zIndex: current.length,
       visible: true,
-      style: { ...DEFAULT_TEXT_STYLE },
+      style: {
+        ...DEFAULT_TEXT_STYLE,
+        ...lastUsedStyle,
+        ...(overrides.style || {}),
+      },
       ...overrides,
     }
 
@@ -52,6 +58,10 @@ export const useLayerStore = create<LayerStoreState>((set, get) => ({
   },
 
   updateLayer: (photoId: string, layerId: string, updates: Partial<TextLayer>) => {
+    if (updates.style) {
+      saveLastUsedTextStyle(updates.style)
+    }
+
     set((state) => {
       const photoLayers = state.layers[photoId]
       if (!photoLayers) return state
@@ -92,6 +102,13 @@ export const useLayerStore = create<LayerStoreState>((set, get) => ({
 
   selectLayer: (id: string | null) => {
     set({ selectedLayerId: id })
+    if (id) {
+      const allLayers = Object.values(get().layers).flat()
+      const found = allLayers.find((l) => l.id === id)
+      if (found?.style) {
+        saveLastUsedTextStyle(found.style)
+      }
+    }
   },
 
   getLayers: (photoId: string) => {

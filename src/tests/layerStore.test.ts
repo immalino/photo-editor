@@ -1,9 +1,11 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { useLayerStore } from '../stores/useLayerStore'
 import { DEFAULT_TEXT_STYLE } from '../constants/defaultStyles'
+import { resetLastUsedTextStyle } from '../services/textStyleStorage'
 
 describe('useLayerStore', () => {
   beforeEach(() => {
+    resetLastUsedTextStyle()
     useLayerStore.getState().clearLayers()
   })
 

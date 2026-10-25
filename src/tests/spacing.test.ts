@@ -181,6 +181,20 @@ describe('Padding & Typography Spacing (Letter & Line Spacing)', () => {
       expect(res.lineHeight).toBe(1.5)
     })
 
+    it('preserves decimal letterSpacing precision', () => {
+      const layer = createLayer({
+        style: {
+          ...DEFAULT_TEXT_STYLE,
+          letterSpacing: 1.5,
+        },
+      })
+
+      const fit = { scale: 0.5, renderedWidth: 500, renderedHeight: 250 }
+      const res = resolveCanvasStyle(layer, fit)
+
+      expect(res.letterSpacing).toBe(0.75) // 1.5 * 0.5 = 0.75
+    })
+
     it('adjusts total text height when custom lineHeight is configured', () => {
       const defaultLayer = createLayer({
         text: 'Line 1\nLine 2',

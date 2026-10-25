@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "Photo Editor",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "identifier": "com.phototexteditor.app",
   "build": {
     "frontendDist": "../dist",
@@ -34,6 +34,29 @@
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
+    ],
+    "fileAssociations": [
+      {
+        "ext": ["png"],
+        "name": "PNG Image",
+        "description": "Portable Network Graphics",
+        "mimeType": "image/png",
+        "role": "Editor"
+      },
+      {
+        "ext": ["jpg", "jpeg"],
+        "name": "JPEG Image",
+        "description": "Joint Photographic Experts Group",
+        "mimeType": "image/jpeg",
+        "role": "Editor"
+      },
+      {
+        "ext": ["webp"],
+        "name": "WebP Image",
+        "description": "WebP Image",
+        "mimeType": "image/webp",
+        "role": "Editor"
+      }
     ]
   }
 }

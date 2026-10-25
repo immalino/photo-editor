@@ -326,7 +326,7 @@ export function resolveCanvasStyle(
             left: Math.round(layer.style.background.padding * fit.scale),
           }
 
-  const letterSpacing = Math.round((layer.style.letterSpacing ?? 0) * fit.scale)
+  const letterSpacing = Math.round((layer.style.letterSpacing ?? 0) * fit.scale * 100) / 100
   const lineHeight = layer.style.lineHeight ?? 1.2
 
   return { fontSize, strokeWidth, shadow, background, padding, letterSpacing, lineHeight }

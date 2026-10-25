@@ -15,6 +15,7 @@ import { useHistoryStore } from './stores/useHistoryStore'
 import { useFontStore } from './stores/useFontStore'
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts'
 import { usePhotoDrop } from './hooks/usePhotoDrop'
+import { useExternalFileOpener } from './hooks/useExternalFileOpener'
 import type { TextLayer } from './types/layer'
 
 export function App() {
@@ -70,6 +71,11 @@ export function App() {
       onPhotoAdded: addPhoto,
       onError: showError,
     })
+
+  useExternalFileOpener({
+    onPhotoAdded: addPhoto,
+    onError: showError,
+  })
 
   const activeLayers = activePhotoId ? (layers[activePhotoId] ?? []) : []
   const selectedLayer = activeLayers.find((l) => l.id === selectedLayerId)

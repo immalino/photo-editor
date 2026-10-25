@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react'
 import { Bold, Italic, AlignLeft, AlignCenter, AlignRight, Type, Space, MoveVertical, RotateCcw } from 'lucide-react'
 import type { TextLayer, TextAlign } from '../../types/layer'
 import { ColorPickerRow } from './ColorPickerRow'
@@ -58,6 +59,15 @@ export function TypographyProperty({
 
   const letterSpacing = style.letterSpacing ?? 0
   const lineHeight = style.lineHeight ?? 1.2
+
+  const [isSpacingFocused, setIsSpacingFocused] = useState(false)
+  const [localSpacing, setLocalSpacing] = useState<string>(String(letterSpacing))
+
+  useEffect(() => {
+    if (!isSpacingFocused) {
+      setLocalSpacing(String(letterSpacing))
+    }
+  }, [letterSpacing, isSpacingFocused])
 
   return (
     <div className="space-y-3 rounded-lg border border-slate-800 bg-slate-900/60 p-3 shadow-xs">
@@ -131,15 +141,72 @@ export function TypographyProperty({
               type="number"
               min={-5}
               max={40}
-              value={letterSpacing}
-              onChange={(e) => updateStyle({ letterSpacing: Number(e.target.value) || 0 })}
+              step={0.1}
+              value={isSpacingFocused ? localSpacing : letterSpacing}
+              onFocus={() => {
+                setIsSpacingFocused(true)
+                setLocalSpacing(String(letterSpacing))
+              }}
+              onBlur={() => {
+                setIsSpacingFocused(false)
+                const num = parseFloat(localSpacing)
+                if (isNaN(num)) {
+                  updateStyle({ letterSpacing: 0 })
+                  setLocalSpacing('0')
+                } else {
+                  const clamped = Math.max(-5, Math.min(40, Math.round(num * 100) / 100))
+                  updateStyle({ letterSpacing: clamped })
+                  setLocalSpacing(String(clamped))
+                }
+              }}
+              onWheel={(e) => {
+                e.preventDefault()
+                const step = e.shiftKey ? 1 : 0.1
+                const delta = e.deltaY < 0 ? step : -step
+                const current = parseFloat(isSpacingFocused ? localSpacing : String(letterSpacing)) || 0
+                const next = Math.max(-5, Math.min(40, Math.round((current + delta) * 10) / 10))
+                setLocalSpacing(String(next))
+                updateStyle({ letterSpacing: next })
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'ArrowUp') {
+                  e.preventDefault()
+                  const current = parseFloat(localSpacing) || 0
+                  const delta = e.shiftKey ? 1 : 0.1
+                  const next = Math.min(40, Math.round((current + delta) * 10) / 10)
+                  setLocalSpacing(String(next))
+                  updateStyle({ letterSpacing: next })
+                } else if (e.key === 'ArrowDown') {
+                  e.preventDefault()
+                  const current = parseFloat(localSpacing) || 0
+                  const delta = e.shiftKey ? 1 : 0.1
+                  const next = Math.max(-5, Math.round((current - delta) * 10) / 10)
+                  setLocalSpacing(String(next))
+                  updateStyle({ letterSpacing: next })
+                }
+              }}
+              onChange={(e) => {
+                const val = e.target.value
+                setLocalSpacing(val)
+                if (val === '') {
+                  updateStyle({ letterSpacing: 0 })
+                } else {
+                  const num = parseFloat(val)
+                  if (!isNaN(num)) {
+                    updateStyle({ letterSpacing: Math.round(num * 100) / 100 })
+                  }
+                }
+              }}
               className="w-14 rounded border border-slate-700 bg-slate-950 px-1.5 py-0.5 text-right font-mono text-xs text-slate-200 focus:border-indigo-500 focus:outline-none"
             />
             <span className="text-[11px] text-slate-500">px</span>
             {letterSpacing !== 0 && (
               <button
                 type="button"
-                onClick={() => updateStyle({ letterSpacing: 0 })}
+                onClick={() => {
+                  updateStyle({ letterSpacing: 0 })
+                  setLocalSpacing('0')
+                }}
                 className="text-slate-500 hover:text-slate-300 transition-colors"
                 title="Reset jarak huruf ke default (0 px)"
               >
@@ -152,9 +219,21 @@ export function TypographyProperty({
           type="range"
           min={-5}
           max={30}
-          step={1}
+          step={0.1}
           value={letterSpacing}
-          onChange={(e) => updateStyle({ letterSpacing: Number(e.target.value) })}
+          onChange={(e) => {
+            const val = Math.round(Number(e.target.value) * 10) / 10
+            updateStyle({ letterSpacing: val })
+            setLocalSpacing(String(val))
+          }}
+          onWheel={(e) => {
+            e.preventDefault()
+            const step = e.shiftKey ? 1 : 0.1
+            const delta = e.deltaY < 0 ? step : -step
+            const next = Math.max(-5, Math.min(30, Math.round((letterSpacing + delta) * 10) / 10))
+            updateStyle({ letterSpacing: next })
+            setLocalSpacing(String(next))
+          }}
           className="h-1.5 w-full cursor-pointer appearance-none rounded-lg bg-slate-700 accent-indigo-500"
         />
       </div>

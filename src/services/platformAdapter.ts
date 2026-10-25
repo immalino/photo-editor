@@ -342,3 +342,81 @@ export async function saveFileBlob(
     return false
   }
 }
+
+/**
+ * Retrieves initial file paths passed to the application on startup (e.g. from Windows "Open with").
+ */
+export async function getInitialFiles(): Promise<string[]> {
+  if (!isTauri()) return []
+  try {
+    const { invoke } = await import('@tauri-apps/api/core')
+    return await invoke<string[]>('get_initial_files')
+  } catch (err) {
+    console.error('Failed to get initial files:', err)
+    return []
+  }
+}
+
+/**
+ * Loads an image file from a filesystem path by reading bytes via Tauri backend
+ * and constructing a standard web File object.
+ */
+export async function loadFileFromPath(filePath: string): Promise<File | null> {
+  if (!isTauri()) return null
+  try {
+    const { invoke } = await import('@tauri-apps/api/core')
+    const bytes = await invoke<number[]>('read_image_file_bytes', { path: filePath })
+    const { baseName, extension } = parseFileName(filePath)
+    const ext = extension.toLowerCase()
+    const mimeType =
+      ext === 'png'
+        ? 'image/png'
+        : ext === 'webp'
+        ? 'image/webp'
+        : ext === 'jpg' || ext === 'jpeg'
+        ? 'image/jpeg'
+        : 'application/octet-stream'
+
+    const uint8Array = new Uint8Array(bytes)
+    const fullName = extension ? `${baseName}.${extension}` : baseName
+    return new File([uint8Array], fullName, { type: mimeType })
+  } catch (err) {
+    console.error('Failed to load file from path:', filePath, err)
+    return null
+  }
+}
+
+/**
+ * Loads multiple image files from an array of filesystem paths.
+ */
+export async function loadFilesFromPaths(filePaths: string[]): Promise<File[]> {
+  const files: File[] = []
+  for (const filePath of filePaths) {
+    const file = await loadFileFromPath(filePath)
+    if (file) {
+      files.push(file)
+    }
+  }
+  return files
+}
+
+/**
+ * Subscribes to files opened events while the application is running (e.g. via second instance).
+ * Returns an unlisten function.
+ */
+export async function onFilesOpened(
+  callback: (paths: string[]) => void
+): Promise<() => void> {
+  if (!isTauri()) return () => {}
+  try {
+    const { listen } = await import('@tauri-apps/api/event')
+    return await listen<string[]>('files-opened', (event) => {
+      if (event.payload) {
+        callback(event.payload)
+      }
+    })
+  } catch (err) {
+    console.error('Failed to listen for files-opened event:', err)
+    return () => {}
+  }
+}

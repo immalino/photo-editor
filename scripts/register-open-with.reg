@@ -1,0 +1,37 @@
+Windows Registry Editor Version 5.00
+
+; INSTRUCTIONS:
+; Replace C:\\path\\to\\Photo Editor.exe with your actual path to Photo Editor.exe (remember double backslashes \\)
+; Then double-click this .reg file to merge into Windows Registry.
+
+[HKEY_CURRENT_USER\Software\Classes\PhotoEditor.ImageFile]
+@="Image File (Photo Editor)"
+"FriendlyTypeName"="Image File (Photo Editor)"
+
+[HKEY_CURRENT_USER\Software\Classes\PhotoEditor.ImageFile\shell\open\command]
+@="\"C:\\path\\to\\Photo Editor.exe\" \"%1\""
+
+[HKEY_CURRENT_USER\Software\Classes\Applications\Photo Editor.exe]
+"FriendlyAppName"="Photo Editor"
+
+[HKEY_CURRENT_USER\Software\Classes\Applications\Photo Editor.exe\SupportedTypes]
+".png"=""
+".jpg"=""
+".jpeg"=""
+".webp"=""
+
+[HKEY_CURRENT_USER\Software\Classes\Applications\Photo Editor.exe\shell\open\command]
+@="\"C:\\path\\to\\Photo Editor.exe\" \"%1\""
+
+[HKEY_CURRENT_USER\Software\Classes\.png\OpenWithProgids]
+"PhotoEditor.ImageFile"=hex(0):
+
+[HKEY_CURRENT_USER\Software\Classes\.jpg\OpenWithProgids]
+"PhotoEditor.ImageFile"=hex(0):
+
+[HKEY_CURRENT_USER\Software\Classes\.jpeg\OpenWithProgids]
+"PhotoEditor.ImageFile"=hex(0):
+
+[HKEY_CURRENT_USER\Software\Classes\.webp\OpenWithProgids]
+"PhotoEditor.ImageFile"=hex(0):
+
