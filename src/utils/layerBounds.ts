@@ -1,7 +1,14 @@
+export interface SpacingSides {
+  top: number
+  right: number
+  bottom: number
+  left: number
+}
+
 export interface BackgroundBoxParams {
   textWidth: number
   textHeight: number
-  padding: number
+  padding: number | SpacingSides
   borderRadius?: number
   scale?: number
 }
@@ -28,20 +35,24 @@ export function calculateBackgroundBox({
   const safeTextWidth = Math.max(0, textWidth)
   const safeTextHeight = Math.max(0, textHeight)
   const safeScale = Math.max(0, scale)
-  const scaledPadding = Math.max(0, padding) * safeScale
+
+  const isUniform = typeof padding === 'number'
+  const padTop = (isUniform ? Math.max(0, padding) : Math.max(0, padding.top)) * safeScale
+  const padRight = (isUniform ? Math.max(0, padding) : Math.max(0, padding.right)) * safeScale
+  const padBottom = (isUniform ? Math.max(0, padding) : Math.max(0, padding.bottom)) * safeScale
+  const padLeft = (isUniform ? Math.max(0, padding) : Math.max(0, padding.left)) * safeScale
+
   const scaledRadius = Math.max(0, borderRadius) * safeScale
 
-  const width = safeTextWidth + scaledPadding * 2
-  const height = safeTextHeight + scaledPadding * 2
+  const width = safeTextWidth + padLeft + padRight
+  const height = safeTextHeight + padTop + padBottom
   // Max border radius shouldn't exceed half the min dimension
   const maxRadius = Math.min(width, height) / 2
   const cornerRadius = Math.min(scaledRadius, maxRadius)
 
-  const offset = scaledPadding === 0 ? 0 : -scaledPadding
-
   return {
-    x: offset,
-    y: offset,
+    x: padLeft === 0 ? 0 : -padLeft,
+    y: padTop === 0 ? 0 : -padTop,
     width,
     height,
     cornerRadius,

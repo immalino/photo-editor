@@ -8,6 +8,8 @@ export const DEFAULT_TEXT_STYLE: TextStyle = {
   align: 'left',
   bold: false,
   italic: false,
+  letterSpacing: 0,
+  lineHeight: 1.2,
   stroke: {
     enabled: true,
     color: '#000000',

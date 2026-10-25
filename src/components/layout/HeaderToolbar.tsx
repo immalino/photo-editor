@@ -46,9 +46,9 @@ export function HeaderToolbar({
   return (
     <header className="flex h-14 shrink-0 items-center justify-between border-b border-slate-800 bg-slate-900/90 px-4 backdrop-blur-sm">
       <div className="flex items-center gap-3">
-        <div className="flex items-center gap-2 font-semibold text-slate-100">
+        <div className="flex items-center gap-2 font-bold text-slate-100">
           <ImageIcon className="h-5 w-5 text-indigo-400" />
-          <span className="text-sm md:text-base">Photo Text Editor</span>
+          <span className="text-sm md:text-base tracking-tight bg-gradient-to-r from-white via-slate-100 to-indigo-300 bg-clip-text text-transparent">Photo Editor</span>
         </div>
 
         {activePhoto && (

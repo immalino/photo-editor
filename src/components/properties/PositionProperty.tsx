@@ -93,7 +93,12 @@ export function PositionProperty({ layer, photo, onChange }: PositionPropertyPro
       <div className="grid grid-cols-2 gap-2 text-xs">
         <div className="space-y-1">
           <div className="flex items-center justify-between text-slate-400">
-            <span>Posisi X</span>
+            <span>
+              Posisi X
+              <span className="text-[10px] text-slate-500 ml-1">
+                {layer.style.align === 'right' ? '(Kanan)' : layer.style.align === 'center' ? '(Tengah)' : '(Kiri)'}
+              </span>
+            </span>
             <span className="text-[10px] text-slate-500">
               {unit === '%' ? `${currentXPx}px` : `${currentXPct}%`}
             </span>

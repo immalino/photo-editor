@@ -1,3 +1,4 @@
+import { PenTool } from 'lucide-react'
 import type { TextLayer, DimensionReference } from '../../types/layer'
 import { ColorPickerRow } from './ColorPickerRow'
 import { pxToPercent } from '../../utils/unitMath'
@@ -52,11 +53,14 @@ export function StrokeProperty({
       : pxToPercent(stroke.width, basis)
 
   return (
-    <div className="space-y-3 rounded-lg border border-slate-800 bg-slate-900/60 p-3">
+    <div className="space-y-3 rounded-lg border border-slate-800 bg-slate-900/60 p-3 shadow-xs">
       <div className="flex items-center justify-between">
-        <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-          Outline / Stroke
-        </span>
+        <div className="flex items-center gap-1.5">
+          <PenTool className="h-3.5 w-3.5 text-indigo-400" />
+          <span className="text-xs font-semibold uppercase tracking-wider text-slate-300">
+            Garis Tepi (Stroke)
+          </span>
+        </div>
         <label className="relative inline-flex cursor-pointer items-center">
           <input
             type="checkbox"

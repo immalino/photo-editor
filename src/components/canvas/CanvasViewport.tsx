@@ -202,19 +202,32 @@ export function CanvasViewport({
     const resolved = resolveCanvasStyle(editingLayer, fit)
     const effectiveFontSize = Math.max(10, Math.round(resolved.fontSize * zoom))
 
+    const align = editingLayer.style.align || 'left'
+    let transformX = '0%'
+    let transformOrigin = 'top left'
+    if (align === 'center') {
+      transformX = '-50%'
+      transformOrigin = 'top center'
+    } else if (align === 'right') {
+      transformX = '-100%'
+      transformOrigin = 'top right'
+    }
+
     inlineEditorStyle = {
       position: 'absolute',
       left: `${screenX}px`,
       top: `${screenY}px`,
-      transform: `rotate(${editingLayer.rotation || 0}deg)`,
-      transformOrigin: 'top left',
+      transform: `translateX(${transformX}) rotate(${editingLayer.rotation || 0}deg)`,
+      transformOrigin,
       fontSize: `${effectiveFontSize}px`,
       fontFamily: editingLayer.style.fontFamily || 'Arial',
       fontWeight: editingLayer.style.bold ? 'bold' : 'normal',
       fontStyle: editingLayer.style.italic ? 'italic' : 'normal',
       color: editingLayer.style.fill || '#ffffff',
-      textAlign: editingLayer.style.align || 'left',
-      lineHeight: 1.2,
+      textAlign: align,
+      lineHeight: `${editingLayer.style.lineHeight ?? 1.2}`,
+      letterSpacing: `${resolved.letterSpacing * zoom}px`,
+      whiteSpace: 'pre',
       minWidth: `${Math.max(140, effectiveFontSize * 4)}px`,
       minHeight: `${effectiveFontSize * 1.5}px`,
       zIndex: 50,
@@ -288,6 +301,7 @@ export function CanvasViewport({
             {editingLayer && inlineEditorStyle && (
               <textarea
                 ref={textareaRef}
+                wrap="off"
                 style={inlineEditorStyle}
                 value={editText}
                 onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setEditText(e.target.value)}

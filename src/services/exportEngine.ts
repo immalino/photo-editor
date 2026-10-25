@@ -8,6 +8,7 @@ import {
   resolveStrokeWidth,
   resolveShadow,
   resolveBackground,
+  resolvePadding,
 } from '../utils/unitMath'
 
 /**
@@ -116,8 +117,52 @@ function renderSingleTextLayer(
           : 'normal'
   const fontSize = resolveFontSize(layer, photoWidth, photoHeight)
   const fontFamily = layer.style.fontFamily || 'Arial'
-  const lineHeight = fontSize * 1.2
+  const lineHeight = fontSize * (layer.style.lineHeight ?? 1.2)
+  const letterSpacing = layer.style.letterSpacing ?? 0
   const lines = (layer.text || '').split('\n')
+
+  if ('letterSpacing' in ctx) {
+    try {
+      ;(ctx as any).letterSpacing = `${letterSpacing}px`
+    } catch {
+      // Ignore if not supported
+    }
+  }
+
+  // Measure line widths for alignment and background box
+  const lineMetrics = lines.map((line) => {
+    if (typeof ctx.measureText === 'function') {
+      const metric = ctx.measureText(line)
+      if (metric && typeof metric.width === 'number') {
+        return metric.width
+      }
+    }
+    return line.length * (fontSize * 0.6) + Math.max(0, line.length - 1) * letterSpacing
+  })
+
+  const maxLineWidth = Math.max(1, ...lineMetrics)
+  const totalTextHeight = lines.length * lineHeight
+
+  const padding = resolvePadding(layer, photoWidth, photoHeight)
+  const bgRes = resolveBackground(layer, photoWidth, photoHeight)
+  const padToUse = layer.style.padding ? padding : bgRes.padding
+
+  const bgBox = calculateBackgroundBox({
+    textWidth: maxLineWidth,
+    textHeight: totalTextHeight,
+    padding: padToUse,
+    borderRadius: bgRes.borderRadius,
+    scale: 1,
+  })
+
+  const align = layer.style.align || 'left'
+  let localAnchorOffsetX = bgBox.x
+  if (align === 'center') {
+    localAnchorOffsetX = bgBox.x + bgBox.width / 2
+  } else if (align === 'right') {
+    localAnchorOffsetX = bgBox.x + bgBox.width
+  }
+  const localAnchorOffsetY = bgBox.y
 
   ctx.save()
   ctx.translate(pos.x, pos.y)
@@ -126,33 +171,14 @@ function renderSingleTextLayer(
     ctx.rotate((layer.rotation * Math.PI) / 180)
   }
 
+  ctx.translate(-localAnchorOffsetX, -localAnchorOffsetY)
+
   ctx.font = `${fontStyle} ${fontSize}px ${fontFamily}`
   ctx.textBaseline = 'top'
-
-  // Measure line widths for alignment and background box
-  const lineMetrics = lines.map((line) => {
-    if (typeof ctx.measureText === 'function') {
-      const metric = ctx.measureText(line)
-      return metric?.width ?? line.length * (fontSize * 0.6)
-    }
-    return line.length * (fontSize * 0.6)
-  })
-
-  const maxLineWidth = Math.max(1, ...lineMetrics)
-  const totalTextHeight = lines.length * lineHeight
 
   // Draw background box if enabled
   if (layer.style.background?.enabled) {
     const bg = layer.style.background
-    const bgRes = resolveBackground(layer, photoWidth, photoHeight)
-    const bgBox = calculateBackgroundBox({
-      textWidth: maxLineWidth,
-      textHeight: totalTextHeight,
-      padding: bgRes.padding,
-      borderRadius: bgRes.borderRadius,
-      scale: 1,
-    })
-
     ctx.save()
     ctx.globalAlpha = (layer.style.opacity ?? 1) * (bg.opacity ?? 1)
     ctx.fillStyle = bg.color

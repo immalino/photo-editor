@@ -189,6 +189,84 @@ export function resolveBackground(
   }
 }
 
+export interface ResolvedSpacing {
+  top: number
+  right: number
+  bottom: number
+  left: number
+}
+
+/**
+ * Resolves effective padding (top, right, bottom, left) in pixels.
+ * Uses layer.style.padding if defined, otherwise falls back to layer.style.background.padding.
+ */
+export function resolvePadding(
+  layer: TextLayer,
+  photoWidth: number,
+  photoHeight: number
+): ResolvedSpacing {
+  const p = layer.style.padding
+  if (p) {
+    const unit = p.unit
+    const ref = p.ref
+    const top = resolveEffectiveSize(
+      unit,
+      p.uniform ? p.value : p.top,
+      p.uniform ? p.valuePercent : p.topPercent,
+      ref,
+      photoWidth,
+      photoHeight,
+      0
+    )
+    const right = resolveEffectiveSize(
+      unit,
+      p.uniform ? p.value : p.right,
+      p.uniform ? p.valuePercent : p.rightPercent,
+      ref,
+      photoWidth,
+      photoHeight,
+      0
+    )
+    const bottom = resolveEffectiveSize(
+      unit,
+      p.uniform ? p.value : p.bottom,
+      p.uniform ? p.valuePercent : p.bottomPercent,
+      ref,
+      photoWidth,
+      photoHeight,
+      0
+    )
+    const left = resolveEffectiveSize(
+      unit,
+      p.uniform ? p.value : p.left,
+      p.uniform ? p.valuePercent : p.leftPercent,
+      ref,
+      photoWidth,
+      photoHeight,
+      0
+    )
+    return {
+      top: Math.round(top),
+      right: Math.round(right),
+      bottom: Math.round(bottom),
+      left: Math.round(left),
+    }
+  }
+
+  // Fallback to background padding if exists
+  if (layer.style.background?.enabled) {
+    const bg = resolveBackground(layer, photoWidth, photoHeight)
+    return {
+      top: bg.padding,
+      right: bg.padding,
+      bottom: bg.padding,
+      left: bg.padding,
+    }
+  }
+
+  return { top: 0, right: 0, bottom: 0, left: 0 }
+}
+
 /**
  * Resolves full styling parameters specifically for the scaled preview canvas.
  */
@@ -200,6 +278,9 @@ export function resolveCanvasStyle(
   strokeWidth: number
   shadow: { blur: number; offsetX: number; offsetY: number }
   background: { padding: number; borderRadius: number }
+  padding: ResolvedSpacing
+  letterSpacing: number
+  lineHeight: number
 } {
   const fontSize =
     layer.style.fontSizeUnit === '%'
@@ -228,5 +309,25 @@ export function resolveCanvasStyle(
           borderRadius: Math.round(layer.style.background.borderRadius * fit.scale),
         }
 
-  return { fontSize, strokeWidth, shadow, background }
+  const padding =
+    layer.style.padding?.unit === '%'
+      ? resolvePadding(layer, fit.renderedWidth, fit.renderedHeight)
+      : layer.style.padding
+        ? {
+            top: Math.round((layer.style.padding.uniform ? layer.style.padding.value : layer.style.padding.top) * fit.scale),
+            right: Math.round((layer.style.padding.uniform ? layer.style.padding.value : layer.style.padding.right) * fit.scale),
+            bottom: Math.round((layer.style.padding.uniform ? layer.style.padding.value : layer.style.padding.bottom) * fit.scale),
+            left: Math.round((layer.style.padding.uniform ? layer.style.padding.value : layer.style.padding.left) * fit.scale),
+          }
+        : {
+            top: Math.round(layer.style.background.padding * fit.scale),
+            right: Math.round(layer.style.background.padding * fit.scale),
+            bottom: Math.round(layer.style.background.padding * fit.scale),
+            left: Math.round(layer.style.background.padding * fit.scale),
+          }
+
+  const letterSpacing = Math.round((layer.style.letterSpacing ?? 0) * fit.scale)
+  const lineHeight = layer.style.lineHeight ?? 1.2
+
+  return { fontSize, strokeWidth, shadow, background, padding, letterSpacing, lineHeight }
 }

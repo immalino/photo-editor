@@ -38,6 +38,22 @@ export interface BackgroundStyle {
   borderRadiusPercent?: number
 }
 
+export interface LayerSpacing {
+  unit: SizeUnit
+  ref?: DimensionReference
+  uniform: boolean
+  value: number
+  valuePercent?: number
+  top: number
+  right: number
+  bottom: number
+  left: number
+  topPercent?: number
+  rightPercent?: number
+  bottomPercent?: number
+  leftPercent?: number
+}
+
 export interface TextStyle {
   fontFamily: string
   fontSize: number
@@ -49,9 +65,12 @@ export interface TextStyle {
   align: TextAlign
   bold: boolean
   italic: boolean
+  letterSpacing?: number
+  lineHeight?: number
   stroke: StrokeStyle
   shadow: ShadowStyle
   background: BackgroundStyle
+  padding?: LayerSpacing
 }
 
 export interface TextLayer {

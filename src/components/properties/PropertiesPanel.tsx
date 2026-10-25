@@ -101,14 +101,23 @@ export function PropertiesPanel({
               onChange={(updates) => onUpdateLayer(selectedLayer.id, updates)}
             />
 
+            <TypographyProperty
+              layer={selectedLayer}
+              photoWidth={photoWidth}
+              photoHeight={photoHeight}
+              onChange={(updates) => onUpdateLayer(selectedLayer.id, updates)}
+            />
+
             <PositionProperty
               layer={selectedLayer}
               photo={photo}
               onChange={(updates) => onUpdateLayer(selectedLayer.id, updates)}
             />
 
-            <TypographyProperty
+            <BackgroundProperty
               layer={selectedLayer}
+              photoWidth={photoWidth}
+              photoHeight={photoHeight}
               onChange={(updates) => onUpdateLayer(selectedLayer.id, updates)}
             />
 
@@ -120,13 +129,6 @@ export function PropertiesPanel({
             />
 
             <ShadowProperty
-              layer={selectedLayer}
-              photoWidth={photoWidth}
-              photoHeight={photoHeight}
-              onChange={(updates) => onUpdateLayer(selectedLayer.id, updates)}
-            />
-
-            <BackgroundProperty
               layer={selectedLayer}
               photoWidth={photoWidth}
               photoHeight={photoHeight}

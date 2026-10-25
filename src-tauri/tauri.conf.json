@@ -1,6 +1,6 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
-  "productName": "Photo Text Editor",
+  "productName": "Photo Editor",
   "version": "0.2.0",
   "identifier": "com.phototexteditor.app",
   "build": {
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "Photo Text Editor",
+        "title": "Photo Editor",
         "width": 1280,
         "height": 800,
         "minWidth": 900,

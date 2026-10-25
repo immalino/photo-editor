@@ -26,6 +26,9 @@ export function CanvasTransformer({
 
     const selectedNode = stage.findOne(`#${selectedLayerId}`)
     if (selectedNode) {
+      if ('clearCache' in selectedNode && typeof (selectedNode as any).clearCache === 'function') {
+        (selectedNode as any).clearCache()
+      }
       trRef.current.nodes([selectedNode])
       trRef.current.update()
     } else {

@@ -70,6 +70,8 @@ export function CanvasTextLayer({
     layer.style.fontFamily,
     layer.style.bold,
     layer.style.italic,
+    layer.style.letterSpacing,
+    layer.style.lineHeight,
     fit.scale,
     fit.renderedWidth,
     fit.renderedHeight,
@@ -80,13 +82,23 @@ export function CanvasTextLayer({
   }
 
   const bg = layer.style.background
+  const paddingToUse = layer.style.padding ? resolved.padding : resolved.background.padding
   const bgBox = calculateBackgroundBox({
     textWidth: textSize.width,
     textHeight: textSize.height,
-    padding: resolved.background.padding,
+    padding: paddingToUse,
     borderRadius: resolved.background.borderRadius,
     scale: 1, // Already resolved to canvas scale
   })
+
+  const align = layer.style.align || 'left'
+  let anchorOffsetX = bgBox.x
+  if (align === 'center') {
+    anchorOffsetX = bgBox.x + bgBox.width / 2
+  } else if (align === 'right') {
+    anchorOffsetX = bgBox.x + bgBox.width
+  }
+  const anchorOffsetY = bgBox.y
 
   return (
     <Group
@@ -94,173 +106,176 @@ export function CanvasTextLayer({
       id={layer.id}
       x={pos.x}
       y={pos.y}
+      offsetX={anchorOffsetX}
+      offsetY={anchorOffsetY}
       rotation={layer.rotation}
-      draggable={!isEditing}
-      opacity={isEditing ? 0.2 : 1}
-      onClick={(e) => {
-        e.cancelBubble = true
-        onSelect(layer.id)
-      }}
-      onTap={(e) => {
-        e.cancelBubble = true
-        onSelect(layer.id)
-      }}
-      onDblClick={(e) => {
-        e.cancelBubble = true
-        onSelect(layer.id)
-        onStartEditing?.(layer.id)
-      }}
-      onDragStart={(e) => {
-        e.cancelBubble = true
-        onSelect(layer.id)
-        clearActiveGuides()
-      }}
-      onDragMove={(e) => {
-        e.cancelBubble = true
-        const node = groupRef.current || (e.target as unknown as Konva.Group)
-        if (!node) return
-
-        // Bypass snapping if Alt is held or snap is turned off
-        const nativeEvt = e.evt as MouseEvent | TouchEvent | undefined
-        const isAltPressed = nativeEvt && 'altKey' in nativeEvt ? nativeEvt.altKey : false
-
-        if (!snapEnabled || isAltPressed) {
+        draggable={!isEditing}
+        opacity={isEditing ? 0.2 : 1}
+        onClick={(e) => {
+          e.cancelBubble = true
+          onSelect(layer.id)
+        }}
+        onTap={(e) => {
+          e.cancelBubble = true
+          onSelect(layer.id)
+        }}
+        onDblClick={(e) => {
+          e.cancelBubble = true
+          onSelect(layer.id)
+          onStartEditing?.(layer.id)
+        }}
+        onDragStart={(e) => {
+          e.cancelBubble = true
+          onSelect(layer.id)
           clearActiveGuides()
-          return
-        }
+        }}
+        onDragMove={(e) => {
+          e.cancelBubble = true
+          const node = groupRef.current || (e.target as unknown as Konva.Group)
+          if (!node) return
 
-        const parentNode = node.getParent()
-        const objBox = node.getClientRect({ relativeTo: parentNode || undefined, skipShadow: true })
+          // Bypass snapping if Alt is held or snap is turned off
+          const nativeEvt = e.evt as MouseEvent | TouchEvent | undefined
+          const isAltPressed = nativeEvt && 'altKey' in nativeEvt ? nativeEvt.altKey : false
 
-        const photoBox = {
-          x: fit.x,
-          y: fit.y,
-          width: fit.renderedWidth,
-          height: fit.renderedHeight,
-        }
+          if (!snapEnabled || isAltPressed) {
+            clearActiveGuides()
+            return
+          }
 
-        const effectiveZoom = zoom && zoom > 0 ? zoom : 1
-        const threshold = snapTolerance / effectiveZoom
+          const parentNode = node.getParent()
+          const objBox = node.getClientRect({ relativeTo: parentNode || undefined, skipShadow: true })
 
-        const snapResult = calculateSnap({
-          draggedBounds: objBox,
-          photoBounds: photoBox,
-          threshold,
-          snapToCenter,
-          snapToEdges,
-        })
+          const photoBox = {
+            x: fit.x,
+            y: fit.y,
+            width: fit.renderedWidth,
+            height: fit.renderedHeight,
+          }
 
-        if (snapResult.deltaX !== 0) {
-          node.x(node.x() + snapResult.deltaX)
-        }
-        if (snapResult.deltaY !== 0) {
-          node.y(node.y() + snapResult.deltaY)
-        }
+          const effectiveZoom = zoom && zoom > 0 ? zoom : 1
+          const threshold = snapTolerance / effectiveZoom
 
-        if (snapResult.guides.length > 0) {
-          setActiveGuides(snapResult.guides)
-        } else {
+          const snapResult = calculateSnap({
+            draggedBounds: objBox,
+            photoBounds: photoBox,
+            threshold,
+            snapToCenter,
+            snapToEdges,
+          })
+
+          if (snapResult.deltaX !== 0) {
+            node.x(node.x() + snapResult.deltaX)
+          }
+          if (snapResult.deltaY !== 0) {
+            node.y(node.y() + snapResult.deltaY)
+          }
+
+          if (snapResult.guides.length > 0) {
+            setActiveGuides(snapResult.guides)
+          } else {
+            clearActiveGuides()
+          }
+        }}
+        onDragEnd={(e) => {
+          e.cancelBubble = true
           clearActiveGuides()
-        }
-      }}
-      onDragEnd={(e) => {
-        e.cancelBubble = true
-        clearActiveGuides()
-        const node = groupRef.current || (e.target as unknown as Konva.Group)
-        const newPos = canvasToRelative(node.x(), node.y(), fit)
-        onChange({
-          relativeX: newPos.relX,
-          relativeY: newPos.relY,
-        })
-      }}
-      onTransformEnd={(e) => {
-        e.cancelBubble = true
-        const node = groupRef.current || e.target
-        const scaleX = node.scaleX()
-        const newPos = canvasToRelative(node.x(), node.y(), fit)
-        const newRotation = Math.round(node.rotation())
-
-        node.scaleX(1)
-        node.scaleY(1)
-
-        if (layer.style.fontSizeUnit === '%') {
-          const basis =
-            layer.style.fontSizeRef === 'height'
-              ? fit.renderedHeight
-              : fit.renderedWidth
-          const currentPx = resolved.fontSize * scaleX
-          const newPct = pxToPercent(currentPx, basis)
+          const node = groupRef.current || (e.target as unknown as Konva.Group)
+          const newPos = canvasToRelative(node.x(), node.y(), fit)
           onChange({
             relativeX: newPos.relX,
             relativeY: newPos.relY,
-            rotation: newRotation,
-            style: {
-              ...layer.style,
-              fontSizePercent: newPct,
-            },
           })
-        } else {
-          const newFontSize = Math.max(8, Math.round(layer.style.fontSize * scaleX))
-          onChange({
-            relativeX: newPos.relX,
-            relativeY: newPos.relY,
-            rotation: newRotation,
-            style: {
-              ...layer.style,
-              fontSize: newFontSize,
-            },
-          })
-        }
-      }}
-      onMouseEnter={(e) => {
-        if (!isEditing) {
+        }}
+        onTransformEnd={(e) => {
+          e.cancelBubble = true
+          const node = groupRef.current || e.target
+          const scaleX = node.scaleX()
+          const newPos = canvasToRelative(node.x(), node.y(), fit)
+          const newRotation = Math.round(node.rotation())
+
+          node.scaleX(1)
+          node.scaleY(1)
+
+          if (layer.style.fontSizeUnit === '%') {
+            const basis =
+              layer.style.fontSizeRef === 'height'
+                ? fit.renderedHeight
+                : fit.renderedWidth
+            const currentPx = resolved.fontSize * scaleX
+            const newPct = pxToPercent(currentPx, basis)
+            onChange({
+              relativeX: newPos.relX,
+              relativeY: newPos.relY,
+              rotation: newRotation,
+              style: {
+                ...layer.style,
+                fontSizePercent: newPct,
+              },
+            })
+          } else {
+            const newFontSize = Math.max(8, Math.round(layer.style.fontSize * scaleX))
+            onChange({
+              relativeX: newPos.relX,
+              relativeY: newPos.relY,
+              rotation: newRotation,
+              style: {
+                ...layer.style,
+                fontSize: newFontSize,
+              },
+            })
+          }
+        }}
+        onMouseEnter={(e) => {
+          if (!isEditing) {
+            const stage = e.target.getStage()
+            if (stage) stage.container().style.cursor = 'move'
+          }
+        }}
+        onMouseLeave={(e) => {
           const stage = e.target.getStage()
-          if (stage) stage.container().style.cursor = 'move'
-        }
-      }}
-      onMouseLeave={(e) => {
-        const stage = e.target.getStage()
-        if (stage) stage.container().style.cursor = 'default'
-      }}
-    >
-      {/* Background layer if enabled */}
-      {bg.enabled && (
+          if (stage) stage.container().style.cursor = 'default'
+        }}
+      >
+        {/* Box Boundary Rect: establishes the Box dimensions with padding inside */}
         <Rect
           x={bgBox.x}
           y={bgBox.y}
           width={bgBox.width}
           height={bgBox.height}
-          fill={bg.color}
-          opacity={bg.opacity}
-          cornerRadius={bgBox.cornerRadius}
+          fill={bg.enabled ? bg.color : 'rgba(0, 0, 0, 0.001)'}
+          opacity={bg.enabled ? bg.opacity : 0.001}
+          cornerRadius={bg.enabled ? bgBox.cornerRadius : 0}
         />
-      )}
 
-      {/* Main Text layer */}
-      <Text
-        ref={textRef}
-        text={layer.text}
-        fontSize={resolved.fontSize}
-        fontFamily={layer.style.fontFamily}
-        fontStyle={fontStyle}
-        fill={layer.style.fill}
-        opacity={layer.style.opacity}
-        align={layer.style.align}
-        stroke={layer.style.stroke.enabled ? layer.style.stroke.color : undefined}
-        strokeWidth={resolved.strokeWidth}
-        fillAfterStrokeEnabled
-        shadowColor={layer.style.shadow.enabled ? layer.style.shadow.color : undefined}
-        shadowBlur={resolved.shadow.blur}
-        shadowOffset={
-          layer.style.shadow.enabled
-            ? {
-                x: resolved.shadow.offsetX,
-                y: resolved.shadow.offsetY,
-              }
-            : undefined
-        }
-        shadowOpacity={layer.style.shadow.enabled ? 1 : 0}
-      />
-    </Group>
-  )
+        {/* Main Text layer */}
+        <Text
+          ref={textRef}
+          text={layer.text}
+          wrap="none"
+          letterSpacing={resolved.letterSpacing}
+          lineHeight={layer.style.lineHeight ?? 1.2}
+          fontSize={resolved.fontSize}
+          fontFamily={layer.style.fontFamily}
+          fontStyle={fontStyle}
+          fill={layer.style.fill}
+          opacity={layer.style.opacity}
+          align={layer.style.align}
+          stroke={layer.style.stroke.enabled ? layer.style.stroke.color : undefined}
+          strokeWidth={resolved.strokeWidth}
+          fillAfterStrokeEnabled
+          shadowColor={layer.style.shadow.enabled ? layer.style.shadow.color : undefined}
+          shadowBlur={resolved.shadow.blur}
+          shadowOffset={
+            layer.style.shadow.enabled
+              ? {
+                  x: resolved.shadow.offsetX,
+                  y: resolved.shadow.offsetY,
+                }
+              : undefined
+          }
+          shadowOpacity={layer.style.shadow.enabled ? 1 : 0}
+        />
+      </Group>
+    )
 }

@@ -1,6 +1,11 @@
 import type { TextLayer } from '../types/layer'
 import { calculateBackgroundBox } from './layerBounds'
-import { resolveFontSize, resolveBackground } from './unitMath'
+import {
+  resolveFontSize,
+  resolveBackground,
+  resolvePadding,
+  type ResolvedSpacing,
+} from './unitMath'
 import { resolveDynamicText } from './dynamicText'
 
 export interface BoundingBox {
@@ -72,6 +77,7 @@ export function measureLayerBounds(
   relHeight: number
   offsetX: number
   offsetY: number
+  padding: ResolvedSpacing
 } {
   const safeW = Math.max(1, photoWidth)
   const safeH = Math.max(1, photoHeight)
@@ -87,18 +93,24 @@ export function measureLayerBounds(
           ? 'italic'
           : 'normal'
 
-  const lineHeight = fontSize * 1.2
+  const lineHeight = fontSize * (layer.style.lineHeight ?? 1.2)
   const effectiveText = resolveDynamicText(layer.text) || ' '
   const lines = effectiveText.split('\n')
 
   const ctx = getMeasureContext()
+  const letterSpacing = layer.style.letterSpacing ?? 0
+  if (ctx && 'letterSpacing' in ctx) {
+    ;(ctx as any).letterSpacing = `${letterSpacing}px`
+  }
+
   const lineMetrics = lines.map((line) => {
     if (ctx) {
       ctx.font = `${fontStyle} ${fontSize}px ${fontFamily}`
       const m = ctx.measureText(line || ' ')
-      return m?.width ?? (line.length || 1) * (fontSize * 0.6)
+      const extraSpacing = 'letterSpacing' in ctx ? 0 : Math.max(0, (line.length || 1) - 1) * letterSpacing
+      return (m?.width ?? (line.length || 1) * (fontSize * 0.6)) + extraSpacing
     }
-    return (line.length || 1) * (fontSize * 0.6)
+    return (line.length || 1) * (fontSize * 0.6) + Math.max(0, (line.length || 1) - 1) * letterSpacing
   })
 
   const textWidth = Math.max(1, ...lineMetrics)
@@ -109,13 +121,28 @@ export function measureLayerBounds(
   let offsetX = 0
   let offsetY = 0
 
+  const padding = resolvePadding(layer, safeW, safeH)
+
   if (layer.style.background?.enabled) {
     const bgRes = resolveBackground(layer, safeW, safeH)
+    const padToUse = layer.style.padding ? padding : bgRes.padding
     const bgBox = calculateBackgroundBox({
       textWidth,
       textHeight,
-      padding: bgRes.padding,
+      padding: padToUse,
       borderRadius: bgRes.borderRadius,
+      scale: 1,
+    })
+    totalWidth = bgBox.width
+    totalHeight = bgBox.height
+    offsetX = bgBox.x
+    offsetY = bgBox.y
+  } else if (layer.style.padding) {
+    const bgBox = calculateBackgroundBox({
+      textWidth,
+      textHeight,
+      padding,
+      borderRadius: 0,
       scale: 1,
     })
     totalWidth = bgBox.width
@@ -131,6 +158,7 @@ export function measureLayerBounds(
     relHeight: totalHeight / safeH,
     offsetX,
     offsetY,
+    padding,
   }
 }
 
@@ -373,69 +401,91 @@ export function getPresetAlignmentPosition(
 ): { relativeX: number; relativeY: number } {
   const { width, height, offsetX, offsetY } = measureLayerBounds(layer, photoWidth, photoHeight)
 
-  const marginX = photoWidth * safeMarginRatio
-  const marginY = photoHeight * safeMarginRatio
+  const defaultMarginX = photoWidth * safeMarginRatio
+  const defaultMarginY = photoHeight * safeMarginRatio
 
-  // Origin to center distance
-  const centerOffsetX = width / 2 + offsetX
-  const centerOffsetY = height / 2 + offsetY
+  const marginL = defaultMarginX
+  const marginR = defaultMarginX
+  const marginT = defaultMarginY
+  const marginB = defaultMarginY
 
-  const centerX = 0.5 - centerOffsetX / photoWidth
-  const centerY = 0.5 - centerOffsetY / photoHeight
+  const align = layer.style.align || 'left'
 
-  const leftEdge = (marginX - offsetX) / photoWidth
-  const rightEdge = (photoWidth - marginX - width - offsetX) / photoWidth
-  const topEdge = (marginY - offsetY) / photoHeight
-  const bottomEdge = (photoHeight - marginY - height - offsetY) / photoHeight
+  let leftAnchorX: number
+  let centerAnchorX: number
+  let rightAnchorX: number
+
+  switch (align) {
+    case 'right':
+      leftAnchorX = (marginL + width) / photoWidth
+      centerAnchorX = 0.5 + (width / 2) / photoWidth
+      rightAnchorX = (photoWidth - marginR) / photoWidth
+      break
+    case 'center':
+      leftAnchorX = (marginL + width / 2) / photoWidth
+      centerAnchorX = 0.5
+      rightAnchorX = (photoWidth - marginR - width / 2) / photoWidth
+      break
+    case 'left':
+    default:
+      leftAnchorX = (marginL - offsetX) / photoWidth
+      centerAnchorX = 0.5 - (width / 2 + offsetX) / photoWidth
+      rightAnchorX = (photoWidth - marginR - width - offsetX) / photoWidth
+      break
+  }
+
+  const topEdge = (marginT - offsetY) / photoHeight
+  const bottomEdge = (photoHeight - marginB - height - offsetY) / photoHeight
+  const centerY = 0.5 - (height / 2 + offsetY) / photoHeight
 
   let newX = layer.relativeX
   let newY = layer.relativeY
 
   switch (preset) {
     case 'center':
-      newX = centerX
+      newX = centerAnchorX
       newY = centerY
       break
     case 'center-h':
-      newX = centerX
+      newX = centerAnchorX
       break
     case 'center-v':
       newY = centerY
       break
     case 'left':
     case 'middle-left':
-      newX = leftEdge
+      newX = leftAnchorX
       if (preset === 'middle-left') newY = centerY
       break
     case 'right':
     case 'middle-right':
-      newX = rightEdge
+      newX = rightAnchorX
       if (preset === 'middle-right') newY = centerY
       break
     case 'top':
     case 'top-center':
       newY = topEdge
-      if (preset === 'top-center') newX = centerX
+      if (preset === 'top-center') newX = centerAnchorX
       break
     case 'bottom':
     case 'bottom-center':
       newY = bottomEdge
-      if (preset === 'bottom-center') newX = centerX
+      if (preset === 'bottom-center') newX = centerAnchorX
       break
     case 'top-left':
-      newX = leftEdge
+      newX = leftAnchorX
       newY = topEdge
       break
     case 'top-right':
-      newX = rightEdge
+      newX = rightAnchorX
       newY = topEdge
       break
     case 'bottom-left':
-      newX = leftEdge
+      newX = leftAnchorX
       newY = bottomEdge
       break
     case 'bottom-right':
-      newX = rightEdge
+      newX = rightAnchorX
       newY = bottomEdge
       break
   }
