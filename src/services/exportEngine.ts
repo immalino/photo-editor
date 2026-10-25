@@ -2,6 +2,7 @@ import type { ExportConfig, ExportFormat } from '../types/export'
 import type { PhotoItem } from '../types/photo'
 import type { TextLayer } from '../types/layer'
 import { calculateBackgroundBox } from '../utils/layerBounds'
+import { resolveDynamicText } from '../utils/dynamicText'
 import {
   resolveFontSize,
   resolveStrokeWidth,
@@ -252,9 +253,13 @@ export async function renderPhotoWithLayers(
     .filter((l) => l.visible !== false)
     .sort((a, b) => a.zIndex - b.zIndex)
 
-  // Render all text layers
+  // Render all text layers (resolving dynamic random numbers per export)
   for (const layer of visibleLayers) {
-    renderSingleTextLayer(ctx, layer, width, height)
+    const layerToRender: TextLayer = {
+      ...layer,
+      text: resolveDynamicText(layer.text),
+    }
+    renderSingleTextLayer(ctx, layerToRender, width, height)
   }
 
   const mimeType = getMimeType(config.format)

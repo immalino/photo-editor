@@ -1,6 +1,7 @@
 import type { TextLayer } from '../types/layer'
 import { calculateBackgroundBox } from './layerBounds'
 import { resolveFontSize, resolveBackground } from './unitMath'
+import { resolveDynamicText } from './dynamicText'
 
 export interface BoundingBox {
   x: number
@@ -87,7 +88,8 @@ export function measureLayerBounds(
           : 'normal'
 
   const lineHeight = fontSize * 1.2
-  const lines = (layer.text || ' ').split('\n')
+  const effectiveText = resolveDynamicText(layer.text) || ' '
+  const lines = effectiveText.split('\n')
 
   const ctx = getMeasureContext()
   const lineMetrics = lines.map((line) => {
