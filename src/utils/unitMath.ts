@@ -72,9 +72,9 @@ export function resolveFontSize(
     fontSizeRef,
     photoWidth,
     photoHeight,
-    6 // minimum font size
+    1 // minimum font size
   )
-  return Math.max(6, Math.round(size))
+  return Math.max(1, Math.round(size))
 }
 
 /**
@@ -285,7 +285,7 @@ export function resolveCanvasStyle(
   const fontSize =
     layer.style.fontSizeUnit === '%'
       ? resolveFontSize(layer, fit.renderedWidth, fit.renderedHeight)
-      : Math.max(8, Math.round(layer.style.fontSize * fit.scale))
+      : Math.max(1, Math.round(layer.style.fontSize * fit.scale))
 
   const strokeWidth =
     layer.style.stroke.unit === '%'

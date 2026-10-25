@@ -200,7 +200,7 @@ export function CanvasViewport({
     const screenX = centerX + pan.x + (rawPos.x - centerX) * zoom
     const screenY = centerY + pan.y + (rawPos.y - centerY) * zoom
     const resolved = resolveCanvasStyle(editingLayer, fit)
-    const effectiveFontSize = Math.max(10, Math.round(resolved.fontSize * zoom))
+    const effectiveFontSize = Math.max(1, Math.round(resolved.fontSize * zoom))
 
     const align = editingLayer.style.align || 'left'
     let transformX = '0%'

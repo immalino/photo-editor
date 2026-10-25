@@ -214,7 +214,7 @@ export function CanvasTextLayer({
               },
             })
           } else {
-            const newFontSize = Math.max(8, Math.round(layer.style.fontSize * scaleX))
+            const newFontSize = Math.max(1, Math.round(layer.style.fontSize * scaleX))
             onChange({
               relativeX: newPos.relX,
               relativeY: newPos.relY,

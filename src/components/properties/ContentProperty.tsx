@@ -78,7 +78,7 @@ export function ContentProperty({
         style: {
           ...style,
           fontSizeUnit: 'px',
-          fontSize: Math.max(8, calculatedPx),
+          fontSize: Math.max(1, calculatedPx),
         },
       })
     }
@@ -101,7 +101,7 @@ export function ContentProperty({
 
   const handleFontSizeChange = (val: number) => {
     if (unit === '%') {
-      const clamped = Math.max(0.2, Math.min(50, val))
+      const clamped = Math.max(0.05, Math.min(50, val))
       onChange({
         style: {
           ...style,
@@ -109,7 +109,7 @@ export function ContentProperty({
         },
       })
     } else {
-      const clamped = Math.max(8, Math.min(300, val))
+      const clamped = Math.max(1, Math.min(500, val))
       onChange({
         style: {
           ...style,
@@ -302,9 +302,9 @@ export function ContentProperty({
             <div className="flex items-center gap-1">
               <input
                 type="number"
-                step={unit === '%' ? 0.2 : 1}
-                min={unit === '%' ? 0.2 : 8}
-                max={unit === '%' ? 50 : 300}
+                step={unit === '%' ? 0.1 : 1}
+                min={unit === '%' ? 0.05 : 1}
+                max={unit === '%' ? 50 : 500}
                 value={unit === '%' ? currentPct : style.fontSize}
                 onChange={(e) => handleFontSizeChange(Number(e.target.value) || 0)}
                 className="w-14 rounded border border-slate-700 bg-slate-950 px-1.5 py-0.5 text-right font-mono text-xs text-slate-200 focus:border-indigo-500 focus:outline-none"
@@ -348,7 +348,7 @@ export function ContentProperty({
 
         <input
           type="range"
-          min={unit === '%' ? 0.5 : 8}
+          min={unit === '%' ? 0.1 : 1}
           max={unit === '%' ? 30 : 200}
           step={unit === '%' ? 0.1 : 1}
           value={unit === '%' ? currentPct : style.fontSize}
