@@ -1,0 +1,13 @@
+[[permission]]
+identifier = "allow-get-initial-files"
+description = "Allows invoking get_initial_files command"
+commands.allow = [
+  "get_initial_files"
+]
+
+[[permission]]
+identifier = "allow-read-image-file-bytes"
+description = "Allows invoking read_image_file_bytes command"
+commands.allow = [
+  "read_image_file_bytes"
+]
